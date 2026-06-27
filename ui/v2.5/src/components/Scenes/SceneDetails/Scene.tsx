@@ -75,7 +75,6 @@ const ExternalPlayerButton = lazyComponent(
 const QueueViewer = lazyComponent(() => import("./QueueViewer"));
 const SceneMarkersPanel = lazyComponent(() => import("./SceneMarkersPanel"));
 const SceneFileInfoPanel = lazyComponent(() => import("./SceneFileInfoPanel"));
-const SceneDetailPanel = lazyComponent(() => import("./SceneDetailPanel"));
 const SceneHistoryPanel = lazyComponent(() => import("./SceneHistoryPanel"));
 const SceneGroupPanel = lazyComponent(() => import("./SceneGroupPanel"));
 const SceneGalleriesPanel = lazyComponent(
@@ -210,7 +209,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
 
   const [organizedLoading, setOrganizedLoading] = useState(false);
 
-  const [activeTabKey, setActiveTabKey] = useState("scene-details-panel");
+  const [activeTabKey, setActiveTabKey] = useState("scene-edit-panel");
 
   const [isMerging, setIsMerging] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState<boolean>(false);
@@ -243,9 +242,8 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
 
   // set up hotkeys
   useEffect(() => {
-    Mousetrap.bind("a", () => setActiveTabKey("scene-details-panel"));
+    Mousetrap.bind("a", () => setActiveTabKey("scene-edit-panel"));
     Mousetrap.bind("q", () => setActiveTabKey("scene-queue-panel"));
-    Mousetrap.bind("e", () => setActiveTabKey("scene-edit-panel"));
     Mousetrap.bind("k", () => setActiveTabKey("scene-markers-panel"));
     Mousetrap.bind("i", () => setActiveTabKey("scene-file-info-panel"));
     Mousetrap.bind("h", () => setActiveTabKey("scene-history-panel"));
@@ -267,7 +265,6 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     return () => {
       Mousetrap.unbind("a");
       Mousetrap.unbind("q");
-      Mousetrap.unbind("e");
       Mousetrap.unbind("k");
       Mousetrap.unbind("i");
       Mousetrap.unbind("h");
@@ -291,12 +288,6 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         },
       },
     });
-    Toast.success(
-      intl.formatMessage(
-        { id: "toast.updated_entity" },
-        { entity: intl.formatMessage({ id: "scene" }).toLocaleLowerCase() }
-      )
-    );
   }
 
   const onOrganizedClick = async () => {
@@ -522,7 +513,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
         <Nav variant="tabs" className="mr-auto">
           <ScenePageTabs {...props}>
             <Nav.Item>
-              <Nav.Link eventKey="scene-details-panel">
+              <Nav.Link eventKey="scene-edit-panel">
                 <FormattedMessage id="details" />
               </Nav.Link>
             </Nav.Item>
@@ -578,19 +569,19 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
                 <FormattedMessage id="history" />
               </Nav.Link>
             </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="scene-edit-panel">
-                <FormattedMessage id="actions.edit" />
-              </Nav.Link>
-            </Nav.Item>
           </ScenePageTabs>
         </Nav>
       </div>
 
       <Tab.Content>
         <ScenePageTabContent {...props}>
-          <Tab.Pane eventKey="scene-details-panel">
-            <SceneDetailPanel scene={scene} />
+          <Tab.Pane eventKey="scene-edit-panel">
+            <SceneEditPanel
+              isVisible={activeTabKey === "scene-edit-panel"}
+              scene={scene}
+              onSubmit={onSave}
+              onDelete={() => setIsDeleteAlertOpen(true)}
+            />
           </Tab.Pane>
           <Tab.Pane eventKey="scene-queue-panel">
             <QueueViewer
@@ -635,14 +626,6 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
             eventKey="scene-file-info-panel"
           >
             <SceneFileInfoPanel scene={scene} />
-          </Tab.Pane>
-          <Tab.Pane eventKey="scene-edit-panel" mountOnEnter>
-            <SceneEditPanel
-              isVisible={activeTabKey === "scene-edit-panel"}
-              scene={scene}
-              onSubmit={onSave}
-              onDelete={() => setIsDeleteAlertOpen(true)}
-            />
           </Tab.Pane>
           <Tab.Pane eventKey="scene-history-panel">
             <SceneHistoryPanel scene={scene} />
