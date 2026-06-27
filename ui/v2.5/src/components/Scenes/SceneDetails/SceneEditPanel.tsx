@@ -30,8 +30,8 @@ import {
   faCheck,
   faSearch,
   faPlus,
+  faCopy,
 } from "@fortawesome/free-solid-svg-icons";
-import { defaultAutoSaveDelay } from "src/core/config";
 import { useConfigurationContext } from "src/hooks/Config";
 import { IGroupEntry, SceneGroupTable } from "./SceneGroupTable";
 import { objectTitle } from "src/core/files";
@@ -139,7 +139,6 @@ export const SceneEditPanel: React.FC<IProps> = ({
 
   const { configuration: stashConfig } = useConfigurationContext();
   const autoSaveEnabled = stashConfig?.ui.autoSave ?? true;
-  const autoSaveDelay = (stashConfig?.ui.autoSaveDelay ?? defaultAutoSaveDelay) * 1000;
 
   // Network state
   const [isLoading, setIsLoading] = useState(false);
@@ -147,8 +146,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
     "idle"
   );
-  const [saveProgressKey, setSaveProgressKey] = useState(0);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [autoSaveTrigger, setAutoSaveTrigger] = useState(0);
 
   const schema = yup.object({
     title: yup.string().ensure(),
@@ -215,9 +213,27 @@ export const SceneEditPanel: React.FC<IProps> = ({
     onSubmit: submit,
   });
 
+  // Refs that always hold the latest values so the auto-save callback doesn't go stale.
+  const formikRef = useRef(formik);
+  formikRef.current = formik;
+  const autoSaveStateRef = useRef({
+    isNew,
+    autoSaveEnabled,
+    customFieldsError,
+  });
+  autoSaveStateRef.current = { isNew, autoSaveEnabled, customFieldsError };
+
+  function scheduleAutoSave() {
+    if (isNew || !autoSaveEnabled) return;
+    setAutoSaveTrigger((k) => k + 1);
+  }
+
   const { tags, updateTagsStateFromScraper, tagsControl } = useTagsEdit(
     scene.tags,
-    (ids) => formik.setFieldValue("tag_ids", ids)
+    (ids) => {
+      formik.setFieldValue("tag_ids", ids);
+      scheduleAutoSave();
+    }
   );
 
   const coverImagePreview = useMemo(() => {
@@ -250,6 +266,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
       "gallery_ids",
       items.map((i) => i.id)
     );
+    scheduleAutoSave();
   }
 
   function onSetPerformers(items: Performer[]) {
@@ -258,11 +275,13 @@ export const SceneEditPanel: React.FC<IProps> = ({
       "performer_ids",
       items.map((item) => item.id)
     );
+    scheduleAutoSave();
   }
 
   function onSetStudio(item: Studio | null) {
     setStudio(item);
     formik.setFieldValue("studio_id", item ? item.id : null);
+    scheduleAutoSave();
   }
 
   useEffect(() => {
@@ -285,34 +304,22 @@ export const SceneEditPanel: React.FC<IProps> = ({
     }
   });
 
-  // Auto-save for existing scenes: debounce after any value or error change.
-  // formik.values is required in deps to reset the debounce timer on each keystroke.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: formik.values drives debounce reset
+  // Auto-save on explicit trigger (blur / select-change). Uses refs so the effect
+  // doesn't capture stale values and only re-runs when the trigger increments.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reads fresh state via refs
   useEffect(() => {
-    if (isNew || !autoSaveEnabled || !formik.dirty) return;
-    if (
-      Object.keys(formik.errors).length > 0 ||
-      customFieldsError !== undefined
-    )
-      return;
-
-    setSaveProgressKey((k) => k + 1);
-    clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => {
-      formik.submitForm();
-    }, autoSaveDelay);
-
-    return () => clearTimeout(autoSaveTimer.current);
-  }, [
-    isNew,
-    autoSaveEnabled,
-    autoSaveDelay,
-    formik.dirty,
-    formik.errors,
-    formik.values,
-    formik.submitForm,
-    customFieldsError,
-  ]);
+    if (autoSaveTrigger === 0) return;
+    const {
+      isNew: n,
+      autoSaveEnabled: ae,
+      customFieldsError: cfe,
+    } = autoSaveStateRef.current;
+    if (n || !ae) return;
+    const f = formikRef.current;
+    if (!f.dirty) return;
+    if (Object.keys(f.errors).length > 0 || cfe !== undefined) return;
+    f.submitForm();
+  }, [autoSaveTrigger]);
 
   function onSetGroups(items: Group[]) {
     setGroups(items);
@@ -332,6 +339,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
     });
 
     formik.setFieldValue("groups", newGroups);
+    scheduleAutoSave();
   }
 
   async function onSave(input: InputValues, andNew?: boolean) {
@@ -749,7 +757,26 @@ export const SceneEditPanel: React.FC<IProps> = ({
       }
     })();
 
-    const title = intl.formatMessage({ id: "performers" });
+    const titleText = intl.formatMessage({ id: "performers" });
+    const title = (
+      <span>
+        {titleText}
+        {performers.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-link copy-field-btn"
+            title={intl.formatMessage({ id: "copy_to_clipboard" })}
+            onClick={() =>
+              navigator.clipboard.writeText(
+                performers.map((p) => p.name).join(", ")
+              )
+            }
+          >
+            <Icon icon={faCopy} />
+          </button>
+        )}
+      </span>
+    );
     const control = (
       <PerformerSelect
         isMulti
@@ -783,7 +810,24 @@ export const SceneEditPanel: React.FC<IProps> = ({
   }
 
   function renderTagsField() {
-    const title = intl.formatMessage({ id: "tags" });
+    const titleText = intl.formatMessage({ id: "tags" });
+    const title = (
+      <span>
+        {titleText}
+        {tags.length > 0 && (
+          <button
+            type="button"
+            className="btn btn-link copy-field-btn"
+            title={intl.formatMessage({ id: "copy_to_clipboard" })}
+            onClick={() =>
+              navigator.clipboard.writeText(tags.map((t) => t.name).join(", "))
+            }
+          >
+            <Icon icon={faCopy} />
+          </button>
+        )}
+      </span>
+    );
     return renderField("tag_ids", title, tagsControl(), fullWidthProps);
   }
 
@@ -821,7 +865,24 @@ export const SceneEditPanel: React.FC<IProps> = ({
           initialQuery={scene.title ?? ""}
         />
       )}
-      <Form noValidate onSubmit={formik.handleSubmit}>
+      <Form
+        noValidate
+        onSubmit={formik.handleSubmit}
+        onBlur={(e) => {
+          const target = e.target as HTMLElement;
+          const tag = target.tagName.toLowerCase();
+          // Only auto-save when a real text/date/textarea input loses focus.
+          // Skipping select-related elements avoids double-saves (those already
+          // call scheduleAutoSave via their onSet* handlers). Crucially, this
+          // prevents a phantom save when the user switches to the details tab
+          // while a hidden input inside this form still holds browser focus.
+          if (tag !== "input" && tag !== "textarea") return;
+          const type = (target as HTMLInputElement).type ?? "";
+          if (type === "hidden" || type === "checkbox" || type === "radio")
+            return;
+          scheduleAutoSave();
+        }}
+      >
         <div className="edit-buttons-container">
           <Row className="form-container px-3 pt-3">
             <div className="edit-buttons mb-3 pl-0">
@@ -841,7 +902,20 @@ export const SceneEditPanel: React.FC<IProps> = ({
                     <FormattedMessage id="actions.save_and_new" />
                   </Dropdown.Item>
                 </SplitButton>
-              ) : null}
+              ) : (
+                <Button
+                  className="edit-button"
+                  variant="primary"
+                  disabled={
+                    !isEqual(formik.errors, {}) ||
+                    customFieldsError !== undefined
+                  }
+                  title={intl.formatMessage({ id: "actions.save" })}
+                  onClick={() => formik.submitForm()}
+                >
+                  <FormattedMessage id="actions.save" />
+                </Button>
+              )}
               {onDelete && (
                 <Button
                   className="edit-button"
@@ -900,15 +974,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
           {!isNew && autoSaveEnabled && (
             <>
               {formik.dirty && saveStatus === "idle" && (
-                <div
-                  key={saveProgressKey}
-                  className="auto-save-progress"
-                  style={
-                    {
-                      "--auto-save-delay": `${autoSaveDelay}ms`,
-                    } as React.CSSProperties
-                  }
-                />
+                <div className="auto-save-progress auto-save-progress--dirty" />
               )}
               {saveStatus === "saving" && (
                 <div className="auto-save-progress auto-save-progress--saving" />

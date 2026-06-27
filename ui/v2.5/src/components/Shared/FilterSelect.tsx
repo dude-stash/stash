@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   OnChangeValue,
   StylesConfig,
   GroupBase,
   OptionsOrGroups,
   Options,
+  components as selectComponents,
+  type InputProps,
 } from "react-select";
 import AsyncSelect from "react-select/async";
 import AsyncCreatableSelect, {
@@ -28,6 +30,7 @@ interface ISelectProps<T, IsMulti extends boolean>
   showDropdown?: boolean;
   groupHeader?: string;
   noOptionsMessageText?: string | null;
+  onPaste?: (e: React.ClipboardEvent<HTMLInputElement>) => void;
 }
 
 interface IFilterSelectProps<T, IsMulti extends boolean>
@@ -66,6 +69,9 @@ const SelectComponent = <T, IsMulti extends boolean>(
     noOptionsMessageText: noOptionsMessage = "None",
   } = props;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selectRef = useRef<any>(null);
+
   const styles: StylesConfig<Option<T>, IsMulti> = {
     option: (base) => ({
       ...base,
@@ -83,6 +89,7 @@ const SelectComponent = <T, IsMulti extends boolean>(
 
   const componentProps = {
     ...props,
+    ref: selectRef,
     styles,
     defaultOptions: true,
     isClearable: true,
@@ -96,6 +103,21 @@ const SelectComponent = <T, IsMulti extends boolean>(
       IndicatorSeparator: () => null,
       ...((!showDropdown || isDisabled) && { DropdownIndicator: () => null }),
       ...(isDisabled && { MultiValueRemove: () => null }),
+      ...(props.onPaste && {
+        Input: (
+          inputProps: InputProps<Option<T>, IsMulti, GroupBase<Option<T>>>
+        ) => <selectComponents.Input {...inputProps} onPaste={props.onPaste} />,
+      }),
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === ",") {
+        e.preventDefault();
+        const focused = selectRef.current?.state?.focusedOption;
+        if (focused) {
+          selectRef.current.selectOption(focused);
+        }
+      }
+      props.onKeyDown?.(e);
     },
   };
 
@@ -238,6 +260,29 @@ export const FilterSelectComponent = <
     loadOptions(inputValue).then(callback);
   }, debounceDelay);
 
+  const handlePaste = isMulti
+    ? async (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const text = e.clipboardData.getData("text");
+        if (!text.includes(",")) return;
+        e.preventDefault();
+        const parts = text
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        const results = await Promise.all(
+          parts.map((part) => loadOptions(part))
+        );
+        const found = results
+          .map((opts) => opts[0])
+          .filter((o): o is Option<T> => Boolean(o));
+        if (found.length === 0) return;
+        const current = Array.isArray(selectedOptions)
+          ? (selectedOptions as Option<T>[])
+          : [];
+        onChange([...current, ...found]);
+      }
+    : undefined;
+
   return (
     <SelectComponent<T, IsMulti>
       {...props}
@@ -248,6 +293,7 @@ export const FilterSelectComponent = <
       onCreateOption={onCreate}
       getNewOptionData={getNewOptionData}
       isValidNewOption={validNewOption}
+      onPaste={handlePaste}
     />
   );
 };

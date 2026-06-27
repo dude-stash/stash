@@ -543,6 +543,28 @@ input[type="range"].blue-slider {
       }
     }
   }
+
+  .scene-performer-names {
+    color: var(--text-muted, #6c757d);
+    font-size: 0.9em;
+    margin-bottom: 0.5rem;
+
+    a {
+      color: inherit;
+
+      &:hover {
+        color: var(--primary, #007bff);
+      }
+    }
+  }
+
+  .copy-field-btn,
+  .add-field-btn {
+    font-size: 0.8em;
+    line-height: 1;
+    padding: 0 0.25rem;
+    vertical-align: baseline;
+  }
 }
 
 #scene-edit-details {
@@ -562,33 +584,38 @@ input[type="range"].blue-slider {
     }
 
     .auto-save-progress {
-      animation: auto-save-fill var(--auto-save-delay, 1000ms) linear forwards;
       background-color: var(--primary, #007bff);
       height: 2px;
-      transform: scaleX(0);
+      opacity: 0.35;
+      transform: scaleX(1);
       transform-origin: left center;
+
+      &--dirty {
+        animation: auto-save-pulse 2s ease-in-out infinite;
+      }
 
       &--saving {
         animation: none;
-        transform: scaleX(1);
+        opacity: 1;
       }
 
       &--saved {
         animation: none;
         background-color: var(--success, #28a745);
-        transform: scaleX(1);
+        opacity: 1;
         transition: background-color 0.2s ease;
       }
     }
   }
 
-  @keyframes auto-save-fill {
-    from {
-      transform: scaleX(0);
+  @keyframes auto-save-pulse {
+    0%,
+    100% {
+      opacity: 0.25;
     }
 
-    to {
-      transform: scaleX(1);
+    50% {
+      opacity: 0.6;
     }
   }
 

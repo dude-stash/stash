@@ -299,6 +299,24 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
     );
   }
 
+  async function onDetailSave(input: {
+    tag_ids: string[];
+    performer_ids: string[];
+  }) {
+    try {
+      await updateScene({
+        variables: {
+          input: {
+            id: scene.id,
+            ...input,
+          },
+        },
+      });
+    } catch (e) {
+      Toast.error(e);
+    }
+  }
+
   const onOrganizedClick = async () => {
     try {
       setOrganizedLoading(true);
@@ -590,7 +608,7 @@ const ScenePage: React.FC<IProps> = PatchComponent("ScenePage", (props) => {
       <Tab.Content>
         <ScenePageTabContent {...props}>
           <Tab.Pane eventKey="scene-details-panel">
-            <SceneDetailPanel scene={scene} />
+            <SceneDetailPanel scene={scene} onSave={onDetailSave} />
           </Tab.Pane>
           <Tab.Pane eventKey="scene-queue-panel">
             <QueueViewer
