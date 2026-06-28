@@ -29,17 +29,22 @@ services:
       ## Adjust below paths (the left part) to your liking.
       ## E.g. you can change ./config:/root/.stash to ./stash:/root/.stash
       ## The left part is the path on your host, the right part is the path in the stash container.
+      ##
+      ## To store data outside this directory, create a .env file next to this
+      ## docker-compose.yml and set STASH_DATA_DIR to an absolute path, e.g.:
+      ##   STASH_DATA_DIR=/home/user/stash-data
+      ## Defaults to a local ./stash-data folder when unset.
 
       ## Keep configs, scrapers, and plugins here.
-      - ./config:/root/.stash
+      - ${STASH_DATA_DIR:-./stash-data}/config:/root/.stash
       ## Point this at your collection.
       ## The left side is where your collection is on your host, the right side is where it will be in stash.
-      - ./data:/data
+      - ${STASH_MEDIA_DIR:-${STASH_DATA_DIR:-./stash-data}/data}:/data
       ## This is where your stash's metadata lives
-      - ./metadata:/metadata
+      - ${STASH_DATA_DIR:-./stash-data}/metadata:/metadata
       ## Any other cache content.
-      - ./cache:/cache
+      - ${STASH_DATA_DIR:-./stash-data}/cache:/cache
       ## Where to store binary blob data (scene covers, images)
-      - ./blobs:/blobs
+      - ${STASH_DATA_DIR:-./stash-data}/blobs:/blobs
       ## Where to store generated content (screenshots,previews,transcodes,sprites)
-      - ./generated:/generated
+      - ${STASH_DATA_DIR:-./stash-data}/generated:/generated

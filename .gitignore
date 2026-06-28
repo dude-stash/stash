@@ -64,3 +64,11 @@ node_modules
 dist
 .DS_Store
 /.local*
+
+####
+# Docker runtime data
+####
+
+/docker/production/stash-data/
+/docker/production/.env
+CLAUDE.md
