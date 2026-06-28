@@ -64,3 +64,6 @@ node_modules
 dist
 .DS_Store
 /.local*
+CLAUDE.md
+docker/production/config/config.yml
+docker/production/docker-compose.yml
