@@ -183,6 +183,35 @@ export function useCreateScrapedGroup(
   return useCreateObject("group", createNewGroup);
 }
 
+export function useLinkScrapedPerformer(
+  props: IUseCreateNewObjectProps<GQL.ScrapedPerformer>
+) {
+  const { scrapeResult, setScrapeResult, newObjects, setNewObjects } = props;
+
+  function linkPerformer(id: string, matchedName: string, scrapedName: string) {
+    const newValue = [...(scrapeResult.newValue ?? [])];
+    newValue.push({
+      stored_id: id,
+      name: matchedName,
+    });
+
+    // add the new performer to the new performers value
+    const performerClone = scrapeResult.cloneWithValue(newValue);
+    setScrapeResult(performerClone);
+
+    // remove the performer from the list
+    const newPerformersClone = newObjects.concat();
+    const pIndex = newPerformersClone.findIndex((p) => p.name === scrapedName);
+    if (pIndex === -1) throw new Error("Could not find performer to remove");
+
+    newPerformersClone.splice(pIndex, 1);
+
+    setNewObjects(newPerformersClone);
+  }
+
+  return linkPerformer;
+}
+
 export function useLinkScrapedTag(
   props: IUseCreateNewObjectProps<GQL.ScrapedTag>
 ) {
