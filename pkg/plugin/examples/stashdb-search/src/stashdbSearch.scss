@@ -1,0 +1,21 @@
+.stashdb-search-page {
+  padding: 2rem;
+  max-width: 900px;
+}
+
+.stashdb-search-form {
+  max-width: 500px;
+}
+
+.stashdb-search-row {
+  display: flex;
+  gap: 0.5rem;
+
+  > * {
+    flex: 1;
+  }
+
+  .form-label {
+    flex-basis: 100%;
+  }
+}

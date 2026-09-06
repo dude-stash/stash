@@ -1,0 +1,16 @@
+name: StashDB Advanced Search
+description: >-
+  PoC UI plugin - searches a configured stash-box instance (e.g. stashdb.org)
+  using the stash-box queryScenes operation, which supports filtering by
+  title, code, url, date and pagination/sort - instead of Stash's built-in
+  free-text/fingerprint-only scraper search.
+url: https://github.com/stashapp/stash
+version: 0.1
+ui:
+  javascript:
+    - stashdbSearch.js
+  css:
+    - stashdbSearch.css
+  csp:
+    connect-src:
+      - https://stashdb.org

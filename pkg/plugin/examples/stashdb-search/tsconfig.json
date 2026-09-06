@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+      "target": "es2019",
+      "outDir": "dist",
+      "skipLibCheck": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "strict": true,
+      "forceConsistentCasingInFileNames": true,
+      "module": "None",
+      "moduleResolution": "node",
+      "jsx": "react",
+      "experimentalDecorators": true,
+      "baseUrl": ".",
+      "sourceMap": true,
+      "allowJs": true,
+      "isolatedModules": true,
+      "noFallthroughCasesInSwitch": true,
+      "useDefineForClassFields": true,
+    },
+    "include": ["src"]
+  }
