@@ -11,6 +11,7 @@ import {
 } from "react-bootstrap";
 import Mousetrap from "mousetrap";
 import cx from "classnames";
+import cx from "classnames";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import {
@@ -149,8 +150,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
 
   // Network state
   const [isLoading, setIsLoading] = useState(false);
-  // tracks only the save mutation, so a save doesn't unmount/reset-scroll the
-  // whole form the way a scrape (isLoading) does
+  // when auto-save is on, keep the form mounted during save so scroll is not reset
   const [isSaving, setIsSaving] = useState(false);
 
   const schema = yup.object({
@@ -340,10 +340,16 @@ export const SceneEditPanel: React.FC<IProps> = ({
   }
 
   async function onSave(input: InputValues, andNew?: boolean) {
-    setIsSaving(true);
+    if (autoSaveEnabled) {
+      setIsSaving(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       await onSubmit(input, andNew);
-      formik.resetForm();
+      if (!autoSaveEnabled) {
+        formik.resetForm();
+      }
       if (andNew) {
         setGalleries(
           scene.galleries?.map((g) => ({
@@ -362,6 +368,7 @@ export const SceneEditPanel: React.FC<IProps> = ({
       Toast.error(e);
     }
     setIsSaving(false);
+    setIsLoading(false);
   }
 
   async function onSaveAndNewClick() {
