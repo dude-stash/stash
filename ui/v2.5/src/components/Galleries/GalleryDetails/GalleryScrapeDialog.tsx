@@ -8,24 +8,17 @@ import {
 } from "src/components/Shared/ScrapeDialog/ScrapeDialogRow";
 import { ScrapeDialog } from "src/components/Shared/ScrapeDialog/ScrapeDialog";
 import {
-  ObjectListScrapeResult,
   ObjectScrapeResult,
   ScrapeResult,
 } from "src/components/Shared/ScrapeDialog/scrapeResult";
-import {
-  ScrapedPerformersRow,
-  ScrapedStudioRow,
-} from "src/components/Shared/ScrapeDialog/ScrapedObjectsRow";
-import { sortStoredIdObjects } from "src/utils/data";
+import { ScrapedStudioRow } from "src/components/Shared/ScrapeDialog/ScrapedObjectsRow";
 import { Performer } from "src/components/Performers/PerformerSelect";
-import {
-  useCreateScrapedPerformer,
-  useCreateScrapedStudio,
-} from "src/components/Shared/ScrapeDialog/createObjects";
+import { useCreateScrapedStudio } from "src/components/Shared/ScrapeDialog/createObjects";
 import { uniq } from "lodash-es";
 import { Tag } from "src/components/Tags/TagSelect";
 import { Studio } from "src/components/Studios/StudioSelect";
 import { useScrapedTags } from "src/components/Shared/ScrapeDialog/scrapedTags";
+import { useScrapedPerformers } from "src/components/Shared/ScrapeDialog/scrapedPerformers";
 
 interface IGalleryScrapeDialogProps {
   gallery: Partial<GQL.GalleryUpdateInput>;
@@ -81,26 +74,23 @@ export const GalleryScrapeDialog: React.FC<IGalleryScrapeDialogProps> = ({
     scraped.studio && !scraped.studio.stored_id ? scraped.studio : undefined
   );
 
-  const [performers, setPerformers] = useState<
-    ObjectListScrapeResult<GQL.ScrapedPerformer>
-  >(
-    new ObjectListScrapeResult<GQL.ScrapedPerformer>(
-      sortStoredIdObjects(
-        galleryPerformers.map((p) => ({
-          stored_id: p.id,
-          name: p.name,
-        }))
-      ),
-      sortStoredIdObjects(scraped.performers ?? undefined)
-    )
-  );
-  const [newPerformers, setNewPerformers] = useState<GQL.ScrapedPerformer[]>(
-    scraped.performers?.filter((t) => !t.stored_id) ?? []
-  );
+  const {
+    tags,
+    newTags,
+    scrapedTagsRow,
+    linkDialog: tagsLinkDialog,
+  } = useScrapedTags(galleryTags, scraped.tags);
 
-  const { tags, newTags, scrapedTagsRow, linkDialog } = useScrapedTags(
-    galleryTags,
-    scraped.tags
+  const {
+    performers,
+    newPerformers,
+    scrapedPerformersRow,
+    linkDialog: performersLinkDialog,
+  } = useScrapedPerformers(
+    galleryPerformers,
+    scraped.performers,
+    undefined,
+    date.useNewValue ? date.newValue : date.originalValue
   );
 
   const [details, setDetails] = useState<ScrapeResult<string>>(
@@ -111,13 +101,6 @@ export const GalleryScrapeDialog: React.FC<IGalleryScrapeDialogProps> = ({
     scrapeResult: studio,
     setScrapeResult: setStudio,
     setNewObject: setNewStudio,
-  });
-
-  const createNewPerformer = useCreateScrapedPerformer({
-    scrapeResult: performers,
-    setScrapeResult: setPerformers,
-    newObjects: newPerformers,
-    setNewObjects: setNewPerformers,
   });
 
   // don't show the dialog if nothing was scraped
@@ -199,15 +182,7 @@ export const GalleryScrapeDialog: React.FC<IGalleryScrapeDialogProps> = ({
           newStudio={newStudio}
           onCreateNew={createNewStudio}
         />
-        <ScrapedPerformersRow
-          field="performers"
-          title={intl.formatMessage({ id: "performers" })}
-          result={performers}
-          onChange={(value) => setPerformers(value)}
-          newObjects={newPerformers}
-          onCreateNew={createNewPerformer}
-          ageFromDate={date.useNewValue ? date.newValue : date.originalValue}
-        />
+        {scrapedPerformersRow}
         {scrapedTagsRow}
         <ScrapedTextAreaRow
           field="details"
@@ -219,8 +194,12 @@ export const GalleryScrapeDialog: React.FC<IGalleryScrapeDialogProps> = ({
     );
   }
 
-  if (linkDialog) {
-    return linkDialog;
+  if (tagsLinkDialog) {
+    return tagsLinkDialog;
+  }
+
+  if (performersLinkDialog) {
+    return performersLinkDialog;
   }
 
   return (

@@ -19,18 +19,17 @@ import {
 } from "src/components/Shared/ScrapeDialog/scrapeResult";
 import {
   ScrapedGroupsRow,
-  ScrapedPerformersRow,
   ScrapedStudioRow,
 } from "src/components/Shared/ScrapeDialog/ScrapedObjectsRow";
 import {
   useCreateScrapedGroup,
-  useCreateScrapedPerformer,
   useCreateScrapedStudio,
 } from "src/components/Shared/ScrapeDialog/createObjects";
 import { Tag } from "src/components/Tags/TagSelect";
 import { Studio } from "src/components/Studios/StudioSelect";
 import { Group } from "src/components/Groups/GroupSelect";
 import { useScrapedTags } from "src/components/Shared/ScrapeDialog/scrapedTags";
+import { useScrapedPerformers } from "src/components/Shared/ScrapeDialog/scrapedPerformers";
 
 interface ISceneScrapeDialogProps {
   scene: Partial<GQL.SceneUpdateInput>;
@@ -101,23 +100,6 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
     )
   );
 
-  const [performers, setPerformers] = useState<
-    ObjectListScrapeResult<GQL.ScrapedPerformer>
-  >(
-    new ObjectListScrapeResult<GQL.ScrapedPerformer>(
-      sortStoredIdObjects(
-        scenePerformers.map((p) => ({
-          stored_id: p.id,
-          name: p.name,
-        }))
-      ),
-      sortStoredIdObjects(scraped.performers ?? undefined)
-    )
-  );
-  const [newPerformers, setNewPerformers] = useState<GQL.ScrapedPerformer[]>(
-    scraped.performers?.filter((t) => !t.stored_id) ?? []
-  );
-
   const [groups, setGroups] = useState<
     ObjectListScrapeResult<GQL.ScrapedGroup>
   >(
@@ -135,10 +117,23 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
     scraped.groups?.filter((t) => !t.stored_id) ?? []
   );
 
-  const { tags, newTags, scrapedTagsRow, linkDialog } = useScrapedTags(
-    sceneTags,
-    scraped.tags,
-    endpoint
+  const {
+    tags,
+    newTags,
+    scrapedTagsRow,
+    linkDialog: tagsLinkDialog,
+  } = useScrapedTags(sceneTags, scraped.tags, endpoint);
+
+  const {
+    performers,
+    newPerformers,
+    scrapedPerformersRow,
+    linkDialog: performersLinkDialog,
+  } = useScrapedPerformers(
+    scenePerformers,
+    scraped.performers,
+    endpoint,
+    sceneAgeFromDate(production_date.currentValue(), date.currentValue())
   );
 
   const [details, setDetails] = useState<ScrapeResult<string>>(
@@ -153,14 +148,6 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
     scrapeResult: studio,
     setScrapeResult: setStudio,
     setNewObject: setNewStudio,
-    endpoint,
-  });
-
-  const createNewPerformer = useCreateScrapedPerformer({
-    scrapeResult: performers,
-    setScrapeResult: setPerformers,
-    newObjects: newPerformers,
-    setNewObjects: setNewPerformers,
     endpoint,
   });
 
@@ -269,18 +256,7 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
           newStudio={newStudio}
           onCreateNew={createNewStudio}
         />
-        <ScrapedPerformersRow
-          field="performers"
-          title={intl.formatMessage({ id: "performers" })}
-          result={performers}
-          onChange={(value) => setPerformers(value)}
-          newObjects={newPerformers}
-          onCreateNew={createNewPerformer}
-          ageFromDate={sceneAgeFromDate(
-            production_date.currentValue(),
-            date.currentValue()
-          )}
-        />
+        {scrapedPerformersRow}
         <ScrapedGroupsRow
           field="groups"
           title={intl.formatMessage({ id: "groups" })}
@@ -314,8 +290,12 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
     );
   }
 
-  if (linkDialog) {
-    return linkDialog;
+  if (tagsLinkDialog) {
+    return tagsLinkDialog;
+  }
+
+  if (performersLinkDialog) {
+    return performersLinkDialog;
   }
 
   return (
