@@ -1,7 +1,8 @@
-# Chromecast refactor plan
+# Casting refactor plan
 
-Refactor the working Chromecast feature into small, reviewable PRs.
-Behaviour stays the same. AirPlay is phase 2.
+Refactor the working Chromecast feature into small, reviewable PRs without
+changing behaviour (phase 1), then fix AirPlay with the same shared core
+(phase 2).
 
 **In plain words:** a Chromecast dongle fetches the video by itself. It has no
 login cookie, it cannot reach `localhost`, and it cannot play MKV. The three
@@ -79,6 +80,7 @@ code. None of them change behaviour.
 | C12 | `@types/chrome-cast.d.ts` still declares `PlayerState`, `IdleReason`, `CURRENT_TIME_CHANGED`, `PLAYER_STATE_CHANGED`, `VOLUME_LEVEL_CHANGED`, `IS_MUTED_CHANGED` — all dropped by commit 3 | Trim to what is used | none |
 | C13 | `ScenePlayer.tsx` mirrors `scene` and `file` into refs so a `getMedia()` closure stays fresh | Replace with a `setMedia(...)` effect keyed on `[scene, file]` — one-way data flow, two refs and one closure gone | low |
 | C14 | Table-driven wrap/unwrap of `play` / `pause` / `currentTime` | Four hand-written closures and four stored originals → one map. Makes the patching, the riskiest part of the feature, readable in one screen | medium — see R1 |
+| C15 | `isCastCapableBrowser()` hand-rolls a user-agent regex | The repo already uses `ua-parser-js` (`utils/apple.ts`, `ScenePlayer.tsx`). Use it here too | low |
 
 ## 5. Phase 1 — the PR stack
 
@@ -116,25 +118,110 @@ and `make it` (`go test ./...`). PR 2 onwards also `pnpm test`.
 ## 6. Phase 2 — AirPlay
 
 Chosen approach: **same fix, shared core.** Keep `@silvermine/videojs-airplay`
-as the button; stop letting it hand the Apple TV whatever the `<video>` element
-happens to be playing.
+as the button; stop letting it hand the Apple TV a URL the Apple TV cannot
+fetch.
 
-AirPlay has the same bug class Chromecast had:
+### 6.1 AirPlay is not Chromecast — it is much smaller
 
-| Problem | Chromecast | AirPlay today |
-| --- | --- | --- |
-| Cannot fetch `localhost` | fixed — rewritten to LAN IP | still broken |
-| Cannot send the session cookie | fixed — signed URLs (#6529) | fixed (#6529) |
-| Gets whatever the player is playing, MKV included | fixed — `pickCastStream` | still broken |
+AirPlay does not take a URL from us. Safari hands the Apple TV **whatever the
+`<video>` element is currently playing**. That single difference removes most of
+the Chromecast problem list.
 
-| PR | Title | ~Lines | Notes |
+| Problem | Chromecast | AirPlay today | Why |
 | --- | --- | --- | --- |
-| 9 | AirPlay uses the shared cast source | 120 | Set the AirPlay source from `pickCastStream` + `rewriteCastUrl`. Reuses PR 3 untouched — no new pure logic, so no new tests beyond a case or two |
-| 10 | AirPlay docs + settings copy | 40 | Fold the `enableAirPlay` setting text and manual section into one pass |
+| Session cookie | fixed — signed URLs | **already fixed** | #6529 signs the stream prefix for both |
+| MKV / unplayable codec | fixed — `pickCastStream` | **already fixed, by accident** | `ScenePlayer.tsx:636` filters every transcode source out in Safari. An MKV direct stream fails in Safari, the source selector fails over to HLS, and the Apple TV gets that HLS |
+| Cannot fetch `localhost` | fixed — LAN IP rewrite | **still broken** | The Apple TV resolves `localhost` to itself |
+| Format choice for the TV | explicit | implicit | Whatever Safari settled on. Usually right |
 
-Out of scope, worth a later look: replacing `@silvermine/videojs-airplay` with
-the native `webkitShowPlaybackTargetPicker` (~40 lines, one less dependency,
-symmetric with the Chromecast approach). Needs Safari and an Apple TV to test.
+So there is exactly one real bug left, and it has a narrow blast radius:
+
+> AirPlay is broken **only when Stash is opened at `http://localhost` on the
+> same Mac**. Open Stash at `http://192.168.x.x:9999` and AirPlay works today.
+
+That is the scoping decision this phase turns on — see 6.2.
+
+### 6.2 Decide this before writing code
+
+| Option | What it is | Cost | Fixes |
+| --- | --- | --- | --- |
+| **A. Docs + in-UI hint** | Tell the user to open Stash at the LAN address when they want AirPlay. Show the hint next to the AirPlay setting, the way the Chromecast setting already explains its HTTPS requirement | 1 PR, ~60 lines | The user's confusion, not the bug |
+| **B. Swap the source when AirPlay engages** (recommended) | Detect that a wireless target went active, swap the player source to the LAN-rewritten URL, restore position and play state, swap back on disconnect | 4 PRs, ~370 lines | The bug |
+| **C. Always serve LAN URLs when AirPlay is on** | Rewrite the source list up front whenever AirPlay is enabled and the page is on `http://localhost` | 1 PR, ~40 lines | The bug, but it changes normal local playback for everyone with the setting on, and breaks if the LAN IP changes mid-session |
+
+**Recommendation: ship A first as a standalone quick win, then B.** A is one
+small PR and removes most of the reported pain immediately. B is the real fix
+and can follow at its own pace. C is tempting but makes everyday local playback
+depend on the LAN IP being correct — a bad trade for a feature most users never
+touch.
+
+### 6.3 The PR stack (option B)
+
+Same rules as phase 1: branch off `develop` as `feature/airplay`, each PR
+targets that branch, one merge at the end.
+
+```mermaid
+graph LR
+  P9["PR9 target profiles<br/>castMedia.ts + tests"] --> P11
+  P10["PR10 AirPlay state<br/>cast/airplay.ts"] --> P11["PR11 source swap<br/>on connect"]
+  P11 --> P12["PR12 docs<br/>+ settings copy"]
+  P12b["PR12 can ship first<br/>as option A"] -.-> P12
+```
+
+| PR | Title | Files | ~Lines | Risk | Reviewable on its own because |
+| --- | --- | --- | --- | --- | --- |
+| 9 | Per-target source profiles | `utils/castMedia.ts`, `castMedia.test.ts` | 90 | low | Turns the phase 1 candidate table into two named profiles, `chromecast` and `airplay`. Pure, unit-tested, nothing wired |
+| 10 | Detect AirPlay target state | `ScenePlayer/cast/airplay.ts` | 100 | low | Wraps two WebKit events — `webkitplaybacktargetavailabilitychanged` and `webkitcurrentplaybacktargetiswirelesschanged` — into `isAvailable` / `isActive` / `onChange`. No behaviour change yet: the silvermine button still owns the picker |
+| 11 | Serve a LAN-reachable source while AirPlay is active | `ScenePlayer.tsx`, `cast/airplay.ts` | 120 | **high** | The only behaviour change. Swap source, restore `currentTime` and play state, swap back on disconnect, refuse to swap when the page is HTTPS |
+| 12 | AirPlay documentation and settings copy | `docs/CHROMECAST.md`, `Interface.md`, `en-GB.json` | 60 | none | Can ship first and alone as option A |
+
+**Do not resurrect `preferHls`.** Phase 1 deletes it as dead (C1). PR 9 brings
+the need back in a better shape: a `CastTarget` profile that names the candidate
+order per device, instead of a boolean that means nothing at the call site.
+
+```
+chromecast: direct-if-H264/AAC-mp4 → original mp4 → hls
+airplay:    hls → direct-if-H264/AAC-mp4 → original mp4
+```
+
+AirPlay prefers HLS: it is adaptive, it seeks cleanly on the Apple TV, and it is
+what Apple recommends for the platform.
+
+### 6.4 Tests
+
+PR 9 extends `castMedia.test.ts`. No new test infrastructure — phase 1 PR 2
+already added Vitest.
+
+- `airplay` profile prefers HLS over a Direct stream that Chromecast would take
+- `chromecast` profile is unchanged by the new parameter (regression guard)
+- localhost rewrite is refused when the page is `https:` (mixed content)
+- an already-LAN source is returned untouched, so no pointless source swap
+
+PRs 10 and 11 are Safari-only DOM behaviour and cannot be unit-tested. They rely
+on the manual matrix in 6.5.
+
+### 6.5 Manual matrix (needs Safari + a real Apple TV)
+
+| Case | Expected |
+| --- | --- |
+| Stash at `http://localhost:9999`, AirPlay to Apple TV | Plays on the TV — this is the bug being fixed |
+| Stash at `http://192.168.x.x:9999`, AirPlay | Still works, no source swap happens |
+| Stash over HTTPS, AirPlay | No swap attempted, no mixed-content error in the console |
+| MKV scene | Plays via HLS failover, as today |
+| H.264/AAC MP4 scene | Plays, HLS preferred by the profile |
+| Seek during AirPlay | Position holds after the swap |
+| Disconnect AirPlay | Local playback continues from the same position |
+| iPhone / iPad Safari | Unchanged — those never use `localhost` |
+| Authentication enabled | TV still plays (signed URLs) |
+| `enableAirPlay` off | No AirPlay button |
+
+### 6.6 Deliberately out of scope
+
+| Item | Why not now |
+| --- | --- |
+| Drop `@silvermine/videojs-airplay` for the native `webkitShowPlaybackTargetPicker` | ~40 lines and one less dependency, and PR 10 already listens to the events the plugin uses — so it gets cheap once B lands. Still a separate decision |
+| Captions on the Apple TV | Text-track URLs are signed and point at `localhost` too, so subtitles would need the same rewrite. Separate, smaller bug — worth its own issue |
+| Chromecast and AirPlay sharing one button | Different SDKs, different failure modes. Merging the UI would undo the clarity phase 1 buys |
 
 ## 7. Tests
 
@@ -186,6 +273,8 @@ PR 6, PR 7 and before the merge to `develop`.
 | R2 | Signed URLs expire after `signed_url_expiry` (default 4 h). A long scene left paused on the TV could outlive its signature | Confirm with a >4 h paused test, or note it in the docs. Not a regression from this refactor |
 | R3 | The LAN IP rewrite puts the machine's private IP into a URL handed to Google's receiver | LAN-only, expected for Cast. Worth one line in `docs/CHROMECAST.md` |
 | R4 | `warmupCastUrl` starts a transcode with a range GET. Cancel the cast quickly and the transcode is orphaned | Existing behaviour, unchanged. Flag only |
+| R5 | Phase 2 PR 11 swaps the player source while AirPlay is active. Safari re-buffers, and the position must be restored by hand | Highest-risk change in phase 2. Keep it in its own PR, behind the existing `enableAirPlay` setting, and swap only when the current source is `localhost` |
+| R6 | Rewriting to `http://192.168.x.x` from an HTTPS page is blocked as mixed content | PR 11 must refuse to swap when `window.location.protocol === "https:"`. Covered by a unit test in PR 9 |
 | O1 | The three commits sit on `my/integration` alongside unrelated auto-save and play-next work | The cast files do not overlap with it — `ScenePlayer.tsx`, `styles.scss` and the Go files are touched only by the cast commits, so the new branch off `develop` is clean |
 | O2 | `warmupCastUrl` already knows when the transcode failed to start, but the result is thrown away, so the user sees a CAF timeout instead | Small behaviour improvement, not in this plan. Say the word and it becomes part of PR 6 |
 
@@ -198,4 +287,13 @@ PR 6, PR 7 and before the merge to `develop`.
 | 3 | PR 6 — first end-to-end test on a real dongle |
 | 4 | PR 7 + manual matrix |
 | 5 | PR 8, merge `feature/chromecast` → `develop` |
-| later | Phase 2: PR 9, PR 10 |
+| later | Phase 2 — see below |
+
+Phase 2:
+
+| Day | Work |
+| --- | --- |
+| 1 | PR 12 alone as option A — docs and the in-UI hint. Ships without the rest |
+| 2 | PR 9, PR 10 in parallel |
+| 3 | PR 11 + Safari and Apple TV matrix |
+| 4 | Merge `feature/airplay` → `develop` |
