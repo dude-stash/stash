@@ -102,6 +102,8 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
   private watching = false;
   private wrapped = false;
   private loadedMediaId: string | null = null;
+  private applyingRemote = false;
+  private mutedBeforeCast: boolean | null = null;
   private remotePlayer: CastRemotePlayer | null = null;
   private remoteController: CastRemotePlayerController | null = null;
   private originalPlay: VideoJsPlayer["play"] | null = null;
@@ -187,20 +189,16 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
       mediaInfo.metadata = metadata;
 
       const request = new chromeCast.media.LoadRequest(mediaInfo);
-      const wasPlaying =
-        !this.remotePlayer?.isMediaLoaded || !this.remotePlayer.isPaused;
-      request.autoplay = wasPlaying;
+      request.autoplay = this.originalPaused
+        ? !this.originalPaused()
+        : !this.player.paused();
       request.currentTime =
         startTime ??
         (this.originalCurrentTime
           ? Number(this.originalCurrentTime()) || 0
           : this.player.currentTime() || 0);
-      this.pauseLocalTech();
       await session.loadMedia(request);
       this.loadedMediaId = media.id;
-      if (wasPlaying) {
-        this.player.trigger("playing");
-      }
     } catch (err) {
       this.reportError(err);
     } finally {
@@ -217,40 +215,28 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
     this.originalCurrentTime = this.player.currentTime.bind(this.player);
 
     this.player.play = (() => {
-      if (!this.connected) return this.originalPlay!();
-      this.pauseLocalTech();
-      void this.onLocalPlay();
-      return Promise.resolve();
+      const result = this.originalPlay!();
+      if (this.connected && !this.applyingRemote) {
+        void this.mirrorPlay();
+      }
+      return result;
     }) as VideoJsPlayer["play"];
 
     this.player.pause = (() => {
-      if (!this.connected) {
-        this.originalPause!();
-        return;
+      this.originalPause!();
+      if (this.connected && !this.applyingRemote) {
+        this.remotePause();
       }
-      this.remotePause();
-      this.player.trigger("pause");
     }) as VideoJsPlayer["pause"];
 
-    this.player.paused = (() => {
-      if (this.connected && this.remotePlayer?.isMediaLoaded) {
-        return this.remotePlayer.isPaused;
-      }
-      return this.originalPaused!();
-    }) as VideoJsPlayer["paused"];
-
     this.player.currentTime = ((value?: number) => {
-      if (!this.connected || !this.remotePlayer) {
-        if (typeof value !== "number") return this.originalCurrentTime!();
-        return this.originalCurrentTime!(value);
-      }
       if (typeof value !== "number") {
-        return this.remotePlayer.isMediaLoaded
-          ? this.remotePlayer.currentTime
-          : this.originalCurrentTime!();
+        return this.originalCurrentTime!();
       }
-      this.remoteSeek(value);
       this.originalCurrentTime!(value);
+      if (this.connected && !this.applyingRemote) {
+        this.remoteSeek(value);
+      }
       return value;
     }) as VideoJsPlayer["currentTime"];
   }
@@ -265,14 +251,7 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
     this.wrapped = false;
   }
 
-  private pauseLocalTech() {
-    const el = this.player.tech(true)?.el();
-    if (el instanceof HTMLMediaElement && !el.paused) {
-      el.pause();
-    }
-  }
-
-  private async onLocalPlay() {
+  private async mirrorPlay() {
     const media = this.pluginOptions.getMedia?.();
     if (!media) return;
     if (this.loadedMediaId !== media.id || !this.remotePlayer?.isMediaLoaded) {
@@ -280,7 +259,6 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
       return;
     }
     this.remotePlay();
-    this.player.trigger("playing");
   }
 
   private remotePlay() {
@@ -317,6 +295,21 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
     } else {
       this.player.el().removeAttribute("data-cast-device");
     }
+    this.syncLocalMute();
+  }
+
+  private syncLocalMute() {
+    if (this.connected) {
+      if (this.mutedBeforeCast === null) {
+        this.mutedBeforeCast = this.player.muted();
+        this.player.muted(true);
+      }
+      return;
+    }
+    if (this.mutedBeforeCast !== null) {
+      this.player.muted(this.mutedBeforeCast);
+      this.mutedBeforeCast = null;
+    }
   }
 
   private bindRemotePlayer() {
@@ -328,42 +321,20 @@ class StashChromecastPlugin extends videojs.getPlugin("plugin") {
     );
     const type = framework.RemotePlayerEventType;
     this.remoteController.addEventListener(
-      type.CURRENT_TIME_CHANGED,
-      this.onRemoteTime
-    );
-    this.remoteController.addEventListener(
       type.IS_PAUSED_CHANGED,
       this.onRemotePaused
     );
-    this.remoteController.addEventListener(
-      type.PLAYER_STATE_CHANGED,
-      this.onRemotePlayerState
-    );
   }
 
-  private onRemoteTime = () => {
-    if (!this.connected || !this.remotePlayer || !this.originalCurrentTime) {
-      return;
-    }
-    this.originalCurrentTime(this.remotePlayer.currentTime);
-    this.player.trigger("timeupdate");
-  };
-
   private onRemotePaused = () => {
-    if (!this.connected || !this.remotePlayer) return;
-    this.player.trigger(this.remotePlayer.isPaused ? "pause" : "playing");
-  };
-
-  private onRemotePlayerState = () => {
-    if (!this.connected || !this.remotePlayer) return;
-    const finished =
-      this.remotePlayer.playerState === "IDLE" &&
-      getCastContext()?.getCurrentSession()?.getMediaSession()?.idleReason ===
-        "FINISHED";
-    if (finished) {
-      this.loadedMediaId = null;
-      this.player.trigger("ended");
+    if (!this.connected || !this.remotePlayer || this.applyingRemote) return;
+    this.applyingRemote = true;
+    if (this.remotePlayer.isPaused) {
+      this.originalPause?.();
+    } else {
+      void this.originalPlay?.();
     }
+    this.applyingRemote = false;
   };
 
   private async watchCastState() {

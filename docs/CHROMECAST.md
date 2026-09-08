@@ -50,11 +50,11 @@ iOS Chrome is WebKit and will not work.
 
 ## Remote control
 
-While connected, the scene player is the remote: `play` / `pause` /
-`currentTime` go to CAF `RemotePlayer`. Changing scene calls `loadMedia`
-again. The local `<video>` stays paused; the poster stays up. When Cast
-finishes (`idleReason` `FINISHED`), the player fires `ended` so playlists
-continue.
+The browser player stays the master: local video keeps playing, and play,
+pause, seek, skip, and scene changes are mirrored to CAF `RemotePlayer`.
+Local audio is muted while connected so the TV is the sound source (unmute
+in the player if you want both). Pause on the TV remote pauses the browser
+too. Playlists follow the local player's `ended` event.
 
 ## Settings
 

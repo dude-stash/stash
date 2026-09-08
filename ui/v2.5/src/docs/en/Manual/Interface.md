@@ -43,9 +43,10 @@ resolve on the dongle; the LAN IP rewrite covers `localhost`. If you serve
 Stash on a custom domain, that name must resolve for the dongle (or use the
 LAN IP in the media URL, which Stash does automatically from localhost).
 
-While connected, the scene player in the browser is the remote: play, pause,
-seek, skip, and changing scene update the Chromecast. The TV's progress is
-shown on the scrubber.
+While connected, the scene plays in the browser and on the Chromecast. Play,
+pause, seek, skip, and changing scene stay in sync. The browser is muted so
+you do not get double audio; unmute the player if you want sound in both
+places.
 
 ### AirPlay
 

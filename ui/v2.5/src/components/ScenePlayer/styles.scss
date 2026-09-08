@@ -113,20 +113,11 @@ $sceneTabWidth: 450px;
   }
 
   &.vjs-stash-chromecasting {
-    .vjs-tech {
-      opacity: 0;
-    }
-
-    .vjs-poster {
-      display: block;
-      opacity: 1;
-    }
-
     &::after {
-      background: rgba(0, 0, 0, 0.35);
+      background: rgba(0, 0, 0, 0.45);
       bottom: 4.5em;
       color: #fff;
-      content: "Casting" attr(data-cast-device);
+      content: "Casting";
       font-size: 0.9rem;
       left: 0.75rem;
       padding: 0.25rem 0.6rem;
