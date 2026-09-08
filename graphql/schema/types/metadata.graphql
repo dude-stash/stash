@@ -360,6 +360,8 @@ type SystemStatus {
   homeDir: String!
   ffmpegPath: String
   ffprobePath: String
+  "IPv4 addresses this Stash instance is reachable on, excluding loopback. Used by Chromecast and similar clients that cannot fetch localhost."
+  localIPs: [String!]!
 }
 
 input MigrateInput {

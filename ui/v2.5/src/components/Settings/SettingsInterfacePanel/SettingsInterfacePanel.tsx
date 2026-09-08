@@ -382,8 +382,16 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
           <BooleanSetting
             id="enable-chromecast"
             headingID="config.ui.scene_player.options.enable_chromecast"
+            subHeadingID="config.ui.scene_player.options.enable_chromecast_desc"
             checked={ui.enableChromecast ?? undefined}
             onChange={(v) => saveUI({ enableChromecast: v })}
+          />
+          <BooleanSetting
+            id="enable-airplay"
+            headingID="config.ui.scene_player.options.enable_airplay"
+            subHeadingID="config.ui.scene_player.options.enable_airplay_desc"
+            checked={ui.enableAirPlay ?? ui.enableChromecast ?? undefined}
+            onChange={(v) => saveUI({ enableAirPlay: v })}
           />
           <BooleanSetting
             id="disable-mobile-media-auto-rotate"

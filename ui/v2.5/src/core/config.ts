@@ -76,6 +76,8 @@ export interface IUIConfig {
 
   // if true the chromecast option will enabled
   enableChromecast?: boolean;
+  // if true the AirPlay button is shown. defaults to enableChromecast
+  enableAirPlay?: boolean;
 
   // if true the slideshow autostarts when opening a gallery's lightbox from the galleries page
   autostartGallerySlideshow?: boolean;
