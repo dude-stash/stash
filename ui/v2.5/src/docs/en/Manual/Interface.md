@@ -25,6 +25,22 @@ By default, in the grid card view the studio will be shown as an image overlay o
 
 ## Scene player options
 
+### Chromecast
+
+Enable Chromecast under Scene Player options. Cast from Chrome, Edge, or Opera.
+The Stash UI must be opened over HTTPS or as `http://localhost`.
+
+The Chromecast loads the file itself. It cannot use `localhost` or browser
+cookies, so Stash sends a Chromecast-safe MP4 or HLS URL, signed for auth, at
+this machine's LAN address. Direct stream is used only when the file is already
+H.264/AAC in an `.mp4` container; otherwise Original `stream.mp4` (or HLS) is
+sent. The first transcode of a scene can take 10–30 seconds to start.
+
+### AirPlay
+
+AirPlay is a separate toggle under Scene Player options. It is shown in Safari
+on Apple devices. If you never set it, it follows the Chromecast setting.
+
 By default, scene videos do not automatically start when navigating to the scenes page. Checking the "Auto-start video" option changes this to auto play scene videos.
 
 The maximum loop duration option allows looping of shorter videos. Set this value to the maximum scene duration that scene videos should loop. Setting this to 0 disables this functionality.

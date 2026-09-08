@@ -852,7 +852,10 @@
             "heading": "Continue playlist by default"
           },
           "disable_mobile_media_auto_rotate": "Disable auto-rotate of fullscreen media on mobile",
+          "enable_airplay": "Enable AirPlay",
+          "enable_airplay_desc": "Show the AirPlay button in Safari on Apple devices. Defaults to the Chromecast setting if unset.",
           "enable_chromecast": "Enable Chromecast",
+          "enable_chromecast_desc": "Cast from Chrome, Edge, or Opera. The UI must be opened over HTTPS or as http://localhost. Chromecast cannot fetch localhost, so Stash rewrites the stream to this machine's LAN address.",
           "show_ab_loop_controls": "Show AB loop controls",
           "show_scrubber": "Show scrubber",
           "show_range_markers": "Show range markers",
