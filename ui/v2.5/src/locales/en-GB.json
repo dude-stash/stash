@@ -860,7 +860,7 @@
           "enable_airplay": "Enable AirPlay",
           "enable_airplay_desc": "Show the AirPlay button in Safari on Apple devices. Defaults to the Chromecast setting if unset.",
           "enable_chromecast": "Enable Chromecast",
-          "enable_chromecast_desc": "Cast from Chrome, Edge, or Opera. The UI must be opened over HTTPS or as http://localhost. Chromecast cannot fetch localhost, so Stash rewrites the stream to this machine's LAN address.",
+          "enable_chromecast_desc": "Cast from Chrome, Edge, or Opera. Open Stash over HTTPS or as http://localhost. Chromecast cannot fetch localhost, so Stash rewrites the stream to this machine's LAN address.",
           "play_next_on_delete": {
             "description": "When deleting a scene from the scene player, play the next scene in the queue instead of returning to the previous page.",
             "heading": "Play next scene after deleting"

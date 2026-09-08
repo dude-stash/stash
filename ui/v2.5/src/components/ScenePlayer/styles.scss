@@ -112,6 +112,34 @@ $sceneTabWidth: 450px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234285f4'%3E%3Cpath d='M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z'/%3E%3C/svg%3E");
   }
 
+  &.vjs-stash-chromecasting {
+    .vjs-tech {
+      opacity: 0;
+    }
+
+    .vjs-poster {
+      display: block;
+      opacity: 1;
+    }
+
+    &::after {
+      background: rgba(0, 0, 0, 0.35);
+      bottom: 4.5em;
+      color: #fff;
+      content: "Casting" attr(data-cast-device);
+      font-size: 0.9rem;
+      left: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      pointer-events: none;
+      position: absolute;
+      z-index: 2;
+    }
+
+    &[data-cast-device]::after {
+      content: "Casting to " attr(data-cast-device);
+    }
+  }
+
   .vjs-autostart-button {
     cursor: pointer;
 

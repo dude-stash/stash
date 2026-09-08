@@ -28,13 +28,24 @@ By default, in the grid card view the studio will be shown as an image overlay o
 ### Chromecast
 
 Enable Chromecast under Scene Player options. Cast from Chrome, Edge, or Opera.
-The Stash UI must be opened over HTTPS or as `http://localhost`.
+Open the Stash UI over **HTTPS** or as **`http://localhost`**. The Cast SDK
+will not start if you open Stash by LAN IP in the address bar.
 
-The Chromecast loads the file itself. It cannot use `localhost` or browser
-cookies, so Stash sends a Chromecast-safe MP4 or HLS URL, signed for auth, at
-this machine's LAN address. Direct stream is used only when the file is already
+The Chromecast loads the file itself. It cannot use `localhost`, browser
+cookies, or most MKV Direct streams. Stash sends a Chromecast-safe MP4 or HLS
+URL, signed for authentication, rewritten to this machine's LAN address
+(`systemStatus.localIPs`). Direct stream is used only when the file is already
 H.264/AAC in an `.mp4` container; otherwise Original `stream.mp4` (or HLS) is
 sent. The first transcode of a scene can take 10–30 seconds to start.
+
+Chromecast uses Google DNS. A hostname that only exists on your LAN will not
+resolve on the dongle; the LAN IP rewrite covers `localhost`. If you serve
+Stash on a custom domain, that name must resolve for the dongle (or use the
+LAN IP in the media URL, which Stash does automatically from localhost).
+
+While connected, the scene player in the browser is the remote: play, pause,
+seek, skip, and changing scene update the Chromecast. The TV's progress is
+shown on the scrubber.
 
 ### AirPlay
 

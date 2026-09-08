@@ -473,6 +473,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           const current = sceneRef.current;
           const currentFile = fileRef.current;
           return {
+            id: current.id,
             streams: current.sceneStreams,
             file: currentFile
               ? {
@@ -771,7 +772,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       player.ready(() => {
         player.vttThumbnails().src(scene.paths.vtt ?? null);
 
-        if (startPosition) {
+        if (player.stashChromecast().isCasting()) {
+          void player.stashChromecast().loadCurrentMedia(startPosition);
+        } else if (startPosition) {
           player.currentTime(startPosition);
         }
       });
