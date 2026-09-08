@@ -16,6 +16,11 @@ declare global {
         AutoJoinPolicy: { ORIGIN_SCOPED: string };
         media: {
           DEFAULT_MEDIA_RECEIVER_APP_ID: string;
+          StreamType: { BUFFERED: string };
+          MetadataType: { GENERIC: number };
+          MediaInfo: new (url: string, contentType: string) => CastMediaInfo;
+          GenericMediaMetadata: new () => CastMediaMetadata;
+          LoadRequest: new (info: CastMediaInfo) => CastLoadRequest;
         };
       };
     };
@@ -46,9 +51,23 @@ declare global {
     removeEventListener: (type: string, handler: () => void) => void;
   }
 
-  // Populated by later work; the context hands these back but this module does
-  // not read into them.
   interface CastSession {
-    getSessionId: () => string;
+    loadMedia: (request: CastLoadRequest) => Promise<void>;
+  }
+
+  interface CastMediaMetadata {
+    metadataType: number;
+    title?: string;
+  }
+
+  interface CastMediaInfo {
+    streamType: string;
+    duration?: number;
+    metadata?: CastMediaMetadata;
+  }
+
+  interface CastLoadRequest {
+    autoplay: boolean;
+    currentTime: number;
   }
 }
