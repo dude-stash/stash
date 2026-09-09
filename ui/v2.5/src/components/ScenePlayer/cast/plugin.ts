@@ -1,29 +1,35 @@
 import videojs, { VideoJsPlayer } from "video.js";
 import {
   type ICastFile,
+  type ICastSource,
   type ICastStream,
   isLocalHost,
   pickCastSource,
   rewriteCastUrl,
-  warmupCastUrl,
 } from "src/utils/castMedia";
 import { isCastSenderOriginAllowed, isCastSenderSupported } from "./sdk";
 import { CastSession } from "./session";
 
 export interface IChromecastScene {
-  id: string;
   title: string;
   streams: ICastStream[];
   file?: ICastFile;
 }
 
 export interface IChromecastOptions {
-  enabled?: boolean;
+  enabled: boolean;
   // Address the device should fetch from, from systemStatus.localIPs.
-  lanIp?: string;
-  scene?: IChromecastScene | null;
-  onError?: (message: string) => void;
+  lanIp: string;
+  scene: IChromecastScene | null;
+  onError: (message: string) => void;
 }
+
+const DISABLED: IChromecastOptions = {
+  enabled: false,
+  lanIp: "",
+  scene: null,
+  onError: () => undefined,
+};
 
 class ChromecastButton extends videojs.getComponent("Button") {
   public onCastClick: () => void = () => undefined;
@@ -50,22 +56,20 @@ class ChromecastButton extends videojs.getComponent("Button") {
 class ChromecastPlugin extends videojs.getPlugin("plugin") {
   private button: ChromecastButton;
   private session = new CastSession();
-  private options: IChromecastOptions = {};
+  private options = DISABLED;
   private busy = false;
 
-  constructor(player: VideoJsPlayer, options?: IChromecastOptions) {
-    super(player, options);
-
-    this.options = options ?? {};
+  constructor(player: VideoJsPlayer) {
+    super(player);
 
     this.button = new ChromecastButton(player);
     this.button.onCastClick = () => {
       void this.toggleCast();
     };
 
-    // Registered before ready() so a device that connects while the player is
-    // still setting up is not missed.
-    this.session.onConnectionChange(() => this.updateButton());
+    // Set before ready() so a device that connects while the player is still
+    // setting up is not missed.
+    this.session.onConnectionChange = () => this.updateButton();
 
     player.ready(() => {
       const { controlBar } = player;
@@ -86,14 +90,12 @@ class ChromecastPlugin extends videojs.getPlugin("plugin") {
 
   /** Called by the scene player whenever the config or the scene changes. */
   public configure(options: IChromecastOptions) {
-    this.options = { ...this.options, ...options };
+    this.options = options;
     this.applyOptions();
   }
 
   private applyOptions() {
-    const enabled = this.options.enabled === true;
-
-    if (enabled) {
+    if (this.options.enabled) {
       this.button.show();
       void this.session.watch();
     } else {
@@ -117,7 +119,7 @@ class ChromecastPlugin extends videojs.getPlugin("plugin") {
    * before opening the device picker so the user gets a reason instead of a
    * device that connects and then sits there.
    */
-  private blockedReason(source: ReturnType<typeof pickCastSource>): string {
+  private blockedReason(source: ICastSource | null): string {
     if (!isCastSenderSupported()) {
       return this.player.localize("Casting needs Chrome, Edge, or Opera");
     }
@@ -134,16 +136,11 @@ class ChromecastPlugin extends videojs.getPlugin("plugin") {
       );
     }
 
-    try {
-      const { hostname } = new URL(source.url, window.location.href);
-      if (isLocalHost(hostname) && !this.options.lanIp) {
-        return this.player.localize(
-          "A Chromecast cannot fetch localhost, and Stash found no LAN address for this machine"
-        );
-      }
-    } catch {
+    // Parsed once already by pickCastSource, so this cannot throw.
+    const { hostname } = new URL(source.url, window.location.href);
+    if (isLocalHost(hostname) && !this.options.lanIp) {
       return this.player.localize(
-        "This scene has no stream a Chromecast can play"
+        "A Chromecast cannot fetch localhost, and Stash found no LAN address for this machine"
       );
     }
 
@@ -158,50 +155,32 @@ class ChromecastPlugin extends videojs.getPlugin("plugin") {
       return;
     }
 
-    const source = this.currentSource();
+    const { scene } = this.options;
+    const source = scene ? pickCastSource(scene.streams, scene.file) : null;
+
     const reason = this.blockedReason(source);
-    if (reason) {
-      this.options.onError?.(reason);
+    if (reason || !scene || !source) {
+      this.options.onError(reason);
       return;
     }
 
     this.busy = true;
     try {
       await this.session.connect();
-      await this.loadCurrentScene();
+      await this.session.load({
+        url: rewriteCastUrl(source.url, this.options.lanIp),
+        contentType: source.contentType,
+        title: scene.title,
+        duration: scene.file?.duration,
+        startTime: this.player.currentTime() || 0,
+        autoplay: !this.player.paused(),
+      });
     } catch (err) {
       this.reportError(err);
     } finally {
       this.busy = false;
       this.updateButton();
     }
-  }
-
-  private currentSource() {
-    const scene = this.options.scene;
-    if (!scene) return null;
-    return pickCastSource(scene.streams, scene.file);
-  }
-
-  private async loadCurrentScene() {
-    const scene = this.options.scene;
-    const source = this.currentSource();
-    if (!scene || !source) return;
-
-    // Start the transcode before the device asks for it, so it is not waiting
-    // on a cold ffmpeg.
-    if (source.transcode) {
-      await warmupCastUrl(source.url);
-    }
-
-    await this.session.load({
-      url: rewriteCastUrl(source.url, this.options.lanIp ?? ""),
-      contentType: source.contentType,
-      title: scene.title,
-      duration: scene.file?.duration,
-      startTime: this.player.currentTime() || 0,
-      autoplay: !this.player.paused(),
-    });
   }
 
   private reportError(err: unknown) {
@@ -213,7 +192,7 @@ class ChromecastPlugin extends videojs.getPlugin("plugin") {
     // Dismissing the device picker rejects too; that is not an error.
     if (/cancel/i.test(message)) return;
 
-    this.options.onError?.(message);
+    this.options.onError(message);
   }
 }
 
@@ -225,7 +204,7 @@ declare module "video.js" {
     chromecast: () => ChromecastPlugin;
   }
   interface VideoJsPlayerPluginOptions {
-    chromecast?: IChromecastOptions;
+    chromecast?: Record<string, never>;
   }
 }
 

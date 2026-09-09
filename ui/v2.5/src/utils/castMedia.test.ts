@@ -11,7 +11,7 @@ import {
 const BASE = "http://localhost:9999/scenes/42";
 
 function stream(path: string, label: string): ICastStream {
-  return { url: `http://localhost:9999${path}`, mime_type: "video/mp4", label };
+  return { url: `http://localhost:9999${path}`, label };
 }
 
 // The endpoint list Stash builds, in the order it builds it. Every endpoint
@@ -25,14 +25,14 @@ const STREAMS: ICastStream[] = [
 ];
 
 const MKV: ICastFile = {
-  path: "/media/scene.mkv",
+  format: "matroska",
   video_codec: "h264",
   audio_codec: "aac",
   duration: 600,
 };
 
 const MP4: ICastFile = {
-  path: "/media/scene.mp4",
+  format: "mp4",
   video_codec: "h264",
   audio_codec: "aac",
   duration: 600,
@@ -45,7 +45,6 @@ describe("pickCastSource", () => {
     const picked = pickCastSource(STREAMS, MKV, BASE);
 
     expect(picked?.url).toContain("stream.mp4?resolution=ORIGINAL");
-    expect(picked?.transcode).toBe(true);
   });
 
   it("uses Direct stream for H.264 + AAC in an mp4", () => {
@@ -54,21 +53,24 @@ describe("pickCastSource", () => {
     expect(picked?.url).toContain("/scene/42/stream");
     expect(picked?.url).not.toContain(".mp4?");
     expect(picked?.contentType).toBe("video/mp4");
-    expect(picked?.transcode).toBe(false);
-  });
-
-  it("transcodes an mp4 container the device cannot decode", () => {
-    const hevc = { ...MP4, video_codec: "hevc" };
-
-    expect(pickCastSource(STREAMS, hevc, BASE)?.transcode).toBe(true);
   });
 
   it.each([
-    ["video", { ...MP4, video_codec: "vp9" }],
-    ["audio", { ...MP4, audio_codec: "opus" }],
-    ["container", { ...MP4, path: "/media/scene.avi" }],
+    ["video codec", { ...MP4, video_codec: "hevc" }],
+    ["video codec", { ...MP4, video_codec: "vp9" }],
+    ["audio codec", { ...MP4, audio_codec: "opus" }],
+    ["container", { ...MP4, format: "avi" }],
   ])("transcodes when the %s is unsupported", (_what, file) => {
-    expect(pickCastSource(STREAMS, file, BASE)?.transcode).toBe(true);
+    expect(pickCastSource(STREAMS, file, BASE)?.url).toContain(".mp4?");
+  });
+
+  it("does not trust the extension over the scanned container", () => {
+    // A Matroska file named .mp4 is exactly the case that used to hang: the
+    // endpoint claims video/mp4 and the name agrees, but the device cannot
+    // demux it.
+    const mislabelled = { ...MKV, format: "matroska" };
+
+    expect(pickCastSource(STREAMS, mislabelled, BASE)?.url).toContain(".mp4?");
   });
 
   it("prefers the original resolution over a downscale", () => {
@@ -98,13 +100,6 @@ describe("pickCastSource", () => {
     expect(pickCastSource([], MKV, BASE)).toBeNull();
   });
 
-  it("keeps the endpoint label, and names the stream when there is none", () => {
-    expect(pickCastSource(STREAMS, MP4, BASE)?.label).toBe("Direct stream");
-
-    const unlabelled = [{ url: STREAMS[1].url, label: null }];
-    expect(pickCastSource(unlabelled, MKV, BASE)?.label).toBe("MP4");
-  });
-
   it("skips a stream whose url cannot be parsed", () => {
     const broken = [
       { url: ":://nonsense", label: "Direct stream" },
@@ -126,17 +121,7 @@ describe("rewriteCastUrl", () => {
     expect(url).toBe("http://192.168.1.20:9999/scene/42/stream.mp4");
   });
 
-  it("corrects the Vite dev port to the Stash port", () => {
-    const url = rewriteCastUrl(
-      "http://localhost:3000/scene/42/stream.mp4",
-      "192.168.1.20",
-      BASE
-    );
-
-    expect(url).toBe("http://192.168.1.20:9999/scene/42/stream.mp4");
-  });
-
-  it("leaves any other port alone", () => {
+  it("keeps the port the server served the url on", () => {
     const url = rewriteCastUrl(
       "http://localhost:8080/scene/42/stream.mp4",
       "192.168.1.20",

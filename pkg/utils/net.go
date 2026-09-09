@@ -1,11 +1,15 @@
 package utils
 
-import "net"
+import (
+	"net"
 
-// ShouldAdvertiseIP reports whether ip is a unicast IPv4 address that other
+	"github.com/stashapp/stash/pkg/sliceutil"
+)
+
+// shouldAdvertiseIP reports whether ip is a unicast IPv4 address that other
 // devices on the LAN can reasonably reach. Loopback, unspecified and
 // link-local addresses are excluded.
-func ShouldAdvertiseIP(ip net.IP) bool {
+func shouldAdvertiseIP(ip net.IP) bool {
 	ip4 := ip.To4()
 	if ip4 == nil {
 		return false
@@ -25,7 +29,7 @@ func preferredOutboundIPv4() net.IP {
 	defer conn.Close()
 
 	addr, ok := conn.LocalAddr().(*net.UDPAddr)
-	if !ok || addr == nil {
+	if !ok {
 		return nil
 	}
 
@@ -36,21 +40,14 @@ func preferredOutboundIPv4() net.IP {
 // and link-local. The preferred outbound address is listed first, since a host
 // with several interfaces is most likely reachable on that one.
 func LocalIPv4s() []string {
-	seen := make(map[string]struct{})
 	ips := make([]string, 0)
 
 	add := func(ip net.IP) {
-		if !ShouldAdvertiseIP(ip) {
+		if !shouldAdvertiseIP(ip) {
 			return
 		}
 
-		s := ip.To4().String()
-		if _, ok := seen[s]; ok {
-			return
-		}
-
-		seen[s] = struct{}{}
-		ips = append(ips, s)
+		ips = sliceutil.AppendUnique(ips, ip.To4().String())
 	}
 
 	add(preferredOutboundIPv4())

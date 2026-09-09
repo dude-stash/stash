@@ -30,9 +30,9 @@ func TestShouldAdvertiseIP(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := ShouldAdvertiseIP(net.ParseIP(tt.ip))
+			got := shouldAdvertiseIP(net.ParseIP(tt.ip))
 			if got != tt.want {
-				t.Errorf("ShouldAdvertiseIP(%q) = %v, want %v", tt.ip, got, tt.want)
+				t.Errorf("shouldAdvertiseIP(%q) = %v, want %v", tt.ip, got, tt.want)
 			}
 		})
 	}
@@ -51,7 +51,7 @@ func TestLocalIPv4s(t *testing.T) {
 			continue
 		}
 
-		if !ShouldAdvertiseIP(parsed) {
+		if !shouldAdvertiseIP(parsed) {
 			t.Errorf("LocalIPv4s returned non-advertisable address %q", ip)
 		}
 

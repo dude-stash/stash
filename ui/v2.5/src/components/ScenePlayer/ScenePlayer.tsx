@@ -311,6 +311,12 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
       return _player;
     }, [_player]);
 
+    // Held in a ref so a new Toast identity does not re-enter the Cast SDK:
+    // the effect below re-runs whenever the scene changes, which is every few
+    // seconds while activity tracking writes back to the cache.
+    const castError = useRef((message: string) => Toast.error(message));
+    castError.current = (message: string) => Toast.error(message);
+
     // Keep the cast plugin in step with the config and the scene on screen.
     useEffect(() => {
       const player = getPlayer();
@@ -320,21 +326,13 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         enabled: enableChromecast,
         lanIp,
         scene: {
-          id: scene.id,
           title: objectTitle(scene),
           streams: scene.sceneStreams,
-          file: file
-            ? {
-                path: file.path,
-                video_codec: file.video_codec,
-                audio_codec: file.audio_codec,
-                duration: file.duration,
-              }
-            : undefined,
+          file,
         },
-        onError: (message) => Toast.error(message),
+        onError: (message) => castError.current(message),
       });
-    }, [getPlayer, enableChromecast, lanIp, scene, file, Toast]);
+    }, [getPlayer, enableChromecast, lanIp, scene, file]);
 
     useEffect(() => {
       if (hideScrubberOverride || fullscreen) {

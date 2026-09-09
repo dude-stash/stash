@@ -11,12 +11,12 @@
 
 export interface ICastStream {
   url: string;
-  mime_type?: string | null;
   label?: string | null;
 }
 
 export interface ICastFile {
-  path: string;
+  // Container as verified at scan time, not as claimed by the extension.
+  format: string;
   video_codec: string;
   audio_codec: string;
   duration: number;
@@ -25,17 +25,18 @@ export interface ICastFile {
 export interface ICastSource {
   url: string;
   contentType: string;
-  label: string;
-  // true when the server transcodes on demand, so the first fetch is slow
-  transcode: boolean;
 }
 
 const MIME_MP4 = "video/mp4";
 const MIME_HLS = "application/x-mpegURL";
 
-// The Vite dev server runs the UI here while the backend stays on its own port.
-const DEV_UI_PORT = "3000";
-const DEFAULT_STASH_PORT = "9999";
+const ORIGINAL = "ORIGINAL";
+
+// ffprobe codec names, as stored on the file.
+const CAST_VIDEO_CODECS = new Set(["h264", "avc1"]);
+const CAST_AUDIO_CODECS = new Set(["aac", "mp3", "mp4a"]);
+// Container name as resolved by MatchContainer, which folds m4v and mov in.
+const CAST_CONTAINER = "mp4";
 
 export function isLocalHost(hostname: string): boolean {
   return (
@@ -65,7 +66,7 @@ export function pickLanIPv4(ips: readonly string[] | null | undefined): string {
 }
 
 interface IParsedStream {
-  stream: ICastStream;
+  url: string;
   pathname: string;
   // "ORIGINAL", "FULL_HD", ... Absent on the direct stream.
   resolution: string | null;
@@ -81,7 +82,7 @@ function parseStreams(
     try {
       const url = new URL(stream.url, base);
       parsed.push({
-        stream,
+        url: stream.url,
         pathname: url.pathname,
         resolution: url.searchParams.get("resolution"),
       });
@@ -94,69 +95,37 @@ function parseStreams(
 }
 
 /**
- * Whether the file plays on a cast device as-is. Only H.264 video with AAC-family
- * audio in an MP4 container is safe; anything else has to be transcoded, whatever
- * MIME type the endpoint claims.
+ * Whether the file plays on a cast device as-is. Only H.264 video with
+ * AAC-family audio in an MP4 container is safe; anything else has to be
+ * transcoded, whatever MIME type the endpoint claims.
  */
 function isDirectFriendly(file?: ICastFile): boolean {
   if (!file) return false;
 
-  const h264 = /h264|avc/i.test(file.video_codec);
-  const aac = /^(aac|mp3|mp4a)/i.test(file.audio_codec);
-  const mp4 = /\.(mp4|m4v|mov)$/i.test(file.path);
-
-  return h264 && aac && mp4;
+  return (
+    CAST_VIDEO_CODECS.has(file.video_codec.toLowerCase()) &&
+    CAST_AUDIO_CODECS.has(file.audio_codec.toLowerCase()) &&
+    file.format.toLowerCase() === CAST_CONTAINER
+  );
 }
 
 interface ICandidate {
+  suffix: string;
   contentType: string;
-  transcode: boolean;
-  fallbackLabel: string;
   // Skips the candidate entirely when it returns false.
   applies?: (file?: ICastFile) => boolean;
-  matches: (parsed: IParsedStream) => boolean;
 }
 
-// Tried in order. Original-resolution endpoints come before the downscaled ones
-// so the device gets the best quality it can handle.
+// Tried in order, and within each the original resolution wins over a
+// downscale, so the device gets the best quality it can handle.
 //
-// Note the resolution check: the original-resolution endpoints are labelled
-// plainly ("MP4", "HLS") with no suffix, and only the query string says
-// ORIGINAL. Matching on label text would silently never fire.
+// The resolution lives in the query string, not the label: the
+// original-resolution endpoints are labelled plainly ("MP4", "HLS"), so
+// matching on label text would silently never fire.
 const CANDIDATES: ICandidate[] = [
-  {
-    contentType: MIME_MP4,
-    transcode: false,
-    fallbackLabel: "Direct stream",
-    applies: isDirectFriendly,
-    matches: ({ pathname }) => pathname.endsWith("/stream"),
-  },
-  {
-    contentType: MIME_MP4,
-    transcode: true,
-    fallbackLabel: "MP4",
-    matches: ({ pathname, resolution }) =>
-      pathname.endsWith(".mp4") && resolution === "ORIGINAL",
-  },
-  {
-    contentType: MIME_MP4,
-    transcode: true,
-    fallbackLabel: "MP4",
-    matches: ({ pathname }) => pathname.endsWith(".mp4"),
-  },
-  {
-    contentType: MIME_HLS,
-    transcode: true,
-    fallbackLabel: "HLS",
-    matches: ({ pathname, resolution }) =>
-      pathname.endsWith(".m3u8") && resolution === "ORIGINAL",
-  },
-  {
-    contentType: MIME_HLS,
-    transcode: true,
-    fallbackLabel: "HLS",
-    matches: ({ pathname }) => pathname.endsWith(".m3u8"),
-  },
+  { suffix: "/stream", contentType: MIME_MP4, applies: isDirectFriendly },
+  { suffix: ".mp4", contentType: MIME_MP4 },
+  { suffix: ".m3u8", contentType: MIME_HLS },
 ];
 
 /**
@@ -170,18 +139,16 @@ export function pickCastSource(
 ): ICastSource | null {
   const parsed = parseStreams(streams, base);
 
-  for (const candidate of CANDIDATES) {
-    if (candidate.applies && !candidate.applies(file)) continue;
+  for (const { suffix, contentType, applies } of CANDIDATES) {
+    if (applies && !applies(file)) continue;
 
-    const found = parsed.find(candidate.matches);
-    if (!found) continue;
+    const matching = parsed.filter((s) => s.pathname.endsWith(suffix));
+    const found =
+      matching.find((s) => s.resolution === ORIGINAL) ?? matching[0];
 
-    return {
-      url: found.stream.url,
-      contentType: candidate.contentType,
-      label: found.stream.label || candidate.fallbackLabel,
-      transcode: candidate.transcode,
-    };
+    if (found) {
+      return { url: found.url, contentType };
+    }
   }
 
   return null;
@@ -191,9 +158,6 @@ export function pickCastSource(
  * Points a localhost URL at an address the cast device can reach. Anything
  * already on a routable host is returned untouched, as is everything when the
  * server reported no LAN address.
- *
- * Only the Vite dev port is corrected: a URL on any other port is already on
- * the port Stash serves from.
  */
 export function rewriteCastUrl(
   rawUrl: string,
@@ -202,36 +166,9 @@ export function rewriteCastUrl(
 ): string {
   const url = new URL(rawUrl, base);
 
-  if (!lanIp || !isLocalHost(url.hostname)) {
-    return url.toString();
-  }
-
-  url.hostname = lanIp;
-  if (url.port === DEV_UI_PORT) {
-    url.port = DEFAULT_STASH_PORT;
+  if (lanIp && isLocalHost(url.hostname)) {
+    url.hostname = lanIp;
   }
 
   return url.toString();
-}
-
-/**
- * Asks Stash for the first bytes of a transcoded stream so ffmpeg is already
- * running when the device asks for it. Without this the device waits on a cold
- * transcode and often gives up first.
- *
- * Fire and forget: a failure here only costs the head start.
- */
-export async function warmupCastUrl(url: string): Promise<void> {
-  const isHls = url.includes(".m3u8");
-  const init: RequestInit = { method: "GET", credentials: "include" };
-  if (!isHls) {
-    init.headers = { Range: "bytes=0-2047" };
-  }
-
-  try {
-    const response = await fetch(url, init);
-    await response.body?.cancel();
-  } catch {
-    // no head start, but the device can still fetch it itself
-  }
 }

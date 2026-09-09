@@ -44,9 +44,14 @@ chooses both the stream and the address.
 - Endpoint **labels are not a reliable key**. The original-resolution endpoints
   are labelled plainly (`MP4`, `HLS`); only the query string says
   `resolution=ORIGINAL`.
-- A transcoded stream is requested once before the device is told about it, so
-  ffmpeg is already running when the device asks. Without that head start the
-  device often gives up first.
+- Judge the container by `VideoFile.format`, never by the file extension.
+  `MatchContainer` reads the file's magic bytes at scan time precisely because
+  Matroska files are routinely named `.mp4` — and one of those served as a
+  direct stream is the original bug.
+- The first transcoded cast is slow to start: `getTranscodeStream` spawns a
+  fresh ffmpeg per request and nothing keeps it warm. Prefetching from the
+  browser does not help - cancelling the prefetch cancels the request context,
+  which kills that ffmpeg.
 
 [#4136]: https://github.com/stashapp/stash/issues/4136
 [#6529]: https://github.com/stashapp/stash/pull/6529

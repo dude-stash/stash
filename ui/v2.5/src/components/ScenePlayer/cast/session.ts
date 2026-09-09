@@ -10,8 +10,6 @@ export interface ICastMedia {
   autoplay?: boolean;
 }
 
-export type CastConnectionListener = (connected: boolean) => void;
-
 const CONNECTED = "CONNECTED";
 
 /**
@@ -23,34 +21,25 @@ const CONNECTED = "CONNECTED";
  * must not keep reacting to the device.
  */
 export class CastSession {
-  private connected = false;
-  private listeners = new Set<CastConnectionListener>();
   private watching: CastContext | null = null;
 
-  /** Whether a device is currently connected. */
-  public isConnected(): boolean {
-    return this.connected;
-  }
+  /** Called whenever the device connects or disconnects. */
+  public onConnectionChange: () => void = () => undefined;
 
-  /** Subscribe to connection changes. Returns an unsubscribe function. */
-  public onConnectionChange(listener: CastConnectionListener): () => void {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
+  public isConnected(): boolean {
+    return getCastContext()?.getCastState() === CONNECTED;
   }
 
   /**
    * Loads the SDK and starts reporting connection changes. Safe to call more
-   * than once. Resolves false when this browser cannot cast at all.
+   * than once: the SDK is only entered on the first call.
    */
-  public async watch(): Promise<boolean> {
+  public async watch(): Promise<void> {
+    if (this.watching) return;
+
     const context = await loadCastSdk();
-    if (!context) return false;
-
-    this.syncState();
-
-    if (this.watching) return true;
+    // Another call may have finished while this one awaited.
+    if (!context || this.watching) return;
     this.watching = context;
 
     const events = window.cast?.framework.CastContextEventType;
@@ -59,7 +48,7 @@ export class CastSession {
       context.addEventListener(events.SESSION_STATE_CHANGED, this.syncState);
     }
 
-    return true;
+    this.syncState();
   }
 
   /**
@@ -76,10 +65,6 @@ export class CastSession {
       await context.requestSession();
     }
 
-    if (!context.getCurrentSession()) {
-      throw new Error("No Cast session");
-    }
-
     this.syncState();
   }
 
@@ -91,9 +76,8 @@ export class CastSession {
 
   /** Plays media on the connected device. */
   public async load(media: ICastMedia): Promise<void> {
-    const context = getCastContext();
     const chromeCast = window.chrome?.cast;
-    const session = context?.getCurrentSession();
+    const session = getCastContext()?.getCurrentSession();
 
     if (!chromeCast || !session) {
       throw new Error("No Cast session");
@@ -132,16 +116,8 @@ export class CastSession {
     }
 
     this.watching = null;
-    this.listeners.clear();
+    this.onConnectionChange = () => undefined;
   }
 
-  private syncState = () => {
-    const connected = getCastContext()?.getCastState() === CONNECTED;
-    if (connected === this.connected) return;
-
-    this.connected = connected;
-    for (const listener of this.listeners) {
-      listener(connected);
-    }
-  };
+  private syncState = () => this.onConnectionChange();
 }
