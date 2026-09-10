@@ -31,30 +31,15 @@ The maximum loop duration option allows looping of shorter videos. Set this valu
 
 ### Chromecast
 
-Enable Chromecast under Scene player options to show the Cast button in the
-player. Casting works from Chrome, Edge and Opera; Safari and Firefox cannot run
-Google's Cast sender, and on iOS every browser is Safari underneath.
+Enable Chromecast under Scene player options to show the Cast button in the player. Casting is supported from Chrome, Edge and Opera. Safari and Firefox don't support Google's Cast SDK, and that includes Safari on iOS.
 
-Stash must be open over **HTTPS** or as **`http://localhost`** — the Cast sender
-refuses to start on `http://192.168.x.x`. The Chromecast itself is the opposite:
-it fetches the video on its own and cannot reach `localhost`, so Stash sends it
-one of this machine's LAN addresses instead. Both sides therefore work at once,
-and you do not need to change how you open Stash.
+Stash needs to be open over HTTPS, or at `http://localhost` - the Cast sender won't start otherwise, for example at `http://192.168.x.x`. The Chromecast itself needs the opposite: it can't reach `localhost`, so Stash sends it one of the server's LAN addresses instead.
 
-The Chromecast also cannot decode every file Stash can serve. Direct streaming is
-used only when the scene is already H.264 video with AAC audio in an MP4
-container; anything else is transcoded on the fly, and the first few seconds can
-take 10 to 30 seconds to appear while ffmpeg starts up. A scene with no format
-the device can play reports that instead of casting.
+Not every file can be cast as-is. Scenes that are already H.264/AAC in an MP4 container are sent directly; anything else is transcoded first, which can take 10-30 seconds before playback starts. If a scene can't be cast at all, this is shown as an error rather than a silent hang.
 
-If your instance requires a login, casting still works: stream URLs are signed,
-so the device does not need your session cookie.
+Casting still works if your Stash requires a login, since stream URLs are signed rather than relying on cookies.
 
-Two things Stash cannot work around. The sender and the Chromecast have to be on
-the same network. And if you reach Stash by a hostname rather than an IP, that
-name has to resolve for the Chromecast too, which uses Google's DNS — a
-LAN-only name will not answer. Opening Stash at `http://localhost` avoids this,
-because Stash substitutes the LAN address itself.
+The sender and the Chromecast must be on the same network. If you access Stash by hostname rather than IP, that hostname also needs to resolve on the Chromecast, which uses Google's DNS - a LAN-only hostname won't work there. Using `http://localhost` avoids this, since Stash substitutes in the LAN address for you.
 
 ### Activity tracking
 
