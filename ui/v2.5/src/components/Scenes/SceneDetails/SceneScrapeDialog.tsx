@@ -12,6 +12,7 @@ import { uniq } from "lodash-es";
 import { Performer } from "src/components/Performers/PerformerSelect";
 import { sortStoredIdObjects } from "src/utils/data";
 import { sceneAgeFromDate } from "src/utils/scene";
+import { PatchComponent } from "src/patch";
 import {
   ObjectListScrapeResult,
   ObjectScrapeResult,
@@ -43,7 +44,7 @@ interface ISceneScrapeDialogProps {
   onClose: (scrapedScene?: GQL.ScrapedScene) => void;
 }
 
-export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
+const _SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
   scene,
   sceneStudio,
   scenePerformers,
@@ -312,5 +313,10 @@ export const SceneScrapeDialog: React.FC<ISceneScrapeDialogProps> = ({
     </ScrapeDialog>
   );
 };
+
+export const SceneScrapeDialog = PatchComponent(
+  "SceneScrapeDialog",
+  _SceneScrapeDialog
+);
 
 export default SceneScrapeDialog;
