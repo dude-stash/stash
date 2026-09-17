@@ -9,9 +9,11 @@ import { TruncatedText } from "../Shared/TruncatedText";
 import { GridCard } from "../Shared/GridCard/GridCard";
 import { PopoverCountButton } from "../Shared/PopoverCountButton";
 import { Icon } from "../Shared/Icon";
-import { faHeart } from "@fortawesome/free-solid-svg-icons";
+import { faBan, faHeart } from "@fortawesome/free-solid-svg-icons";
 import cx from "classnames";
 import { useTagUpdate } from "src/core/StashService";
+import { useIntl } from "react-intl";
+import { useTagScrapeExclusion } from "src/hooks/tagScrapeExclusion";
 
 interface IProps {
   tag: GQL.TagDataFragment | GQL.TagListDataFragment;
@@ -87,7 +89,10 @@ const TagCardPopovers: React.FC<IProps> = PatchComponent(
 const TagCardOverlays: React.FC<IProps> = PatchComponent(
   "TagCard.Overlays",
   ({ tag }) => {
+    const intl = useIntl();
     const [updateTag] = useTagUpdate();
+    const { excluded: excludedFromScrapes, setExcluded: setExcludedFromScrapes } =
+      useTagScrapeExclusion(tag.name);
 
     function renderFavoriteIcon() {
       return (
@@ -120,7 +125,31 @@ const TagCardOverlays: React.FC<IProps> = PatchComponent(
       }
     }
 
-    return <>{renderFavoriteIcon()}</>;
+    function renderExcludeFromScrapesIcon() {
+      return (
+        <Link to="" onClick={(e) => e.preventDefault()}>
+          <Button
+            className={cx(
+              "minimal",
+              "mousetrap",
+              "exclude-from-scrapes-button",
+              excludedFromScrapes ? "excluded" : "not-excluded"
+            )}
+            title={intl.formatMessage({ id: "exclude_from_scrapes" })}
+            onClick={() => setExcludedFromScrapes(!excludedFromScrapes)}
+          >
+            <Icon icon={faBan} size="2x" />
+          </Button>
+        </Link>
+      );
+    }
+
+    return (
+      <>
+        {renderFavoriteIcon()}
+        {renderExcludeFromScrapesIcon()}
+      </>
+    );
   }
 );
 

@@ -3,7 +3,8 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import * as yup from "yup";
 import { DetailsEditNavbar } from "src/components/Shared/DetailsEditNavbar";
-import { Button, Form } from "react-bootstrap";
+import { Button, Col, Form, Row } from "react-bootstrap";
+import { useTagScrapeExclusion } from "src/hooks/tagScrapeExclusion";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import ImageUtils from "src/utils/image";
 import { useFormik } from "formik";
@@ -46,8 +47,18 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
   const intl = useIntl();
   const Toast = useToast();
   const { configuration: stashConfig } = useConfigurationContext();
+  const { excluded: excludedFromScrapes, setExcluded: setExcludedFromScrapes } =
+    useTagScrapeExclusion(tag?.name);
 
   const isNew = tag.id === undefined;
+
+  async function onToggleExcludeFromScrapes(checked: boolean) {
+    try {
+      await setExcludedFromScrapes(checked);
+    } catch (e) {
+      Toast.error(e);
+    }
+  }
 
   // Editing state
   const [isStashIDSearchOpen, setIsStashIDSearchOpen] = useState(false);
@@ -300,6 +311,24 @@ export const TagEditPanel: React.FC<ITagEditPanel> = ({
 
           <hr />
           {renderInputField("ignore_auto_tag", "checkbox")}
+          {!isNew && (
+            <Form.Group controlId="exclude-from-scrapes" as={Row}>
+              <Form.Label>
+                <FormattedMessage id="exclude_from_scrapes" />
+              </Form.Label>
+              <Col>
+                <Form.Check
+                  checked={excludedFromScrapes}
+                  onChange={(e) =>
+                    onToggleExcludeFromScrapes(e.currentTarget.checked)
+                  }
+                />
+                <Form.Text className="text-muted">
+                  <FormattedMessage id="exclude_from_scrapes_desc" />
+                </Form.Text>
+              </Col>
+            </Form.Group>
+          )}
         </Form>
 
         <DetailsEditNavbar

@@ -534,6 +534,11 @@ const stripQuotes = (text: string) => {
  */
 const addQuotes = (text: string) => `"${text}"`;
 
+/*
+ * Escapes regex special characters so a string can be matched literally
+ */
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 const TextUtils = {
   fileSize,
   formatFileSizeUnit,
@@ -559,6 +564,7 @@ const TextUtils = {
   abbreviateCounter,
   stripQuotes,
   addQuotes,
+  escapeRegExp,
 };
 
 export default TextUtils;

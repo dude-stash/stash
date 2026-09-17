@@ -1201,6 +1201,8 @@
   },
   "eta": "ETA",
   "ethnicity": "Ethnicity",
+  "exclude_from_scrapes": "Exclude from scrapes",
+  "exclude_from_scrapes_desc": "Automatically exclude this tag's name from scraped tag suggestions, by adding it to the excluded tag patterns in scraping settings.",
   "existing_value": "existing value",
   "eye_color": "Eye Colour",
   "fake_tits": "Fake Tits",
