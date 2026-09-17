@@ -175,7 +175,10 @@ func (s *jsonFragmentScraper) scrapeSceneByScene(ctx context.Context, scene *mod
 	if s.definition.QueryURLReplacements != nil {
 		queryURL.applyReplacements(s.definition.QueryURLReplacements)
 	}
-	url := queryURL.constructURL(s.definition.QueryURL)
+	url, err := queryURL.constructURL(s.definition.QueryURL)
+	if err != nil {
+		return nil, err
+	}
 
 	scraper, err := s.getJsonScraper(s.definition.Scraper)
 	if err != nil {
@@ -209,7 +212,10 @@ func (s *jsonFragmentScraper) scrapeByFragment(ctx context.Context, input Input)
 	if s.definition.QueryURLReplacements != nil {
 		queryURL.applyReplacements(s.definition.QueryURLReplacements)
 	}
-	url := queryURL.constructURL(s.definition.QueryURL)
+	url, err := queryURL.constructURL(s.definition.QueryURL)
+	if err != nil {
+		return nil, err
+	}
 
 	scraper, err := s.getJsonScraper(s.definition.Scraper)
 	if err != nil {
@@ -232,7 +238,10 @@ func (s *jsonFragmentScraper) scrapeImageByImage(ctx context.Context, image *mod
 	if s.definition.QueryURLReplacements != nil {
 		queryURL.applyReplacements(s.definition.QueryURLReplacements)
 	}
-	url := queryURL.constructURL(s.definition.QueryURL)
+	url, err := queryURL.constructURL(s.definition.QueryURL)
+	if err != nil {
+		return nil, err
+	}
 
 	scraper, err := s.getJsonScraper(s.definition.Scraper)
 	if err != nil {
@@ -255,7 +264,10 @@ func (s *jsonFragmentScraper) scrapeGalleryByGallery(ctx context.Context, galler
 	if s.definition.QueryURLReplacements != nil {
 		queryURL.applyReplacements(s.definition.QueryURLReplacements)
 	}
-	url := queryURL.constructURL(s.definition.QueryURL)
+	url, err := queryURL.constructURL(s.definition.QueryURL)
+	if err != nil {
+		return nil, err
+	}
 
 	scraper, err := s.getJsonScraper(s.definition.Scraper)
 	if err != nil {
