@@ -481,9 +481,9 @@ export const Skin: React.FC<ISkinProps> = ({
         </media-tooltip-group>
       </media-controls-content>
     </media-controls>
+    {/* Stash's v7 shortcuts; k, i and c stay with the scene page's tab and screenshot shortcuts. */}
     <media-hotkey keys="Space" action="togglePaused" />
     <media-hotkey keys="Enter" action="togglePaused" />
-    <media-hotkey keys="k" action="togglePaused" />
     <media-hotkey keys="m" action="toggleMuted" />
     <media-hotkey keys="ArrowRight" action="seekStep" value="10" />
     <media-hotkey keys="ArrowLeft" action="seekStep" value="-10" />
@@ -501,8 +501,6 @@ export const Skin: React.FC<ISkinProps> = ({
     <media-hotkey keys=">" action="speedUp" />
     <media-hotkey keys="<" action="speedDown" />
     <media-hotkey keys="f" action="toggleFullscreen" />
-    <media-hotkey keys="c" action="toggleSubtitles" />
-    <media-hotkey keys="i" action="togglePictureInPicture" />
     <media-gesture
       type="tap"
       action="togglePaused"

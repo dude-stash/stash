@@ -288,12 +288,20 @@ export function useInteractiveSync(
   const scriptReady = useRef(false);
 
   useEffect(() => {
+    // A new scene stops the device until its own script is uploaded.
+    client.pause();
     if (!scene.interactive || !initialised) return;
     scriptReady.current = false;
     uploadScript(scene.paths.funscript || "").then(() => {
       scriptReady.current = true;
     });
-  }, [uploadScript, initialised, scene.interactive, scene.paths.funscript]);
+  }, [
+    client,
+    uploadScript,
+    initialised,
+    scene.interactive,
+    scene.paths.funscript,
+  ]);
 
   // Play the script if the video started before the upload finished.
   useEffect(() => {
