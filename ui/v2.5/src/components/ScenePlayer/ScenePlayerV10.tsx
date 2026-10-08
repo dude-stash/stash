@@ -45,6 +45,7 @@ import {
   useAbLoop,
   useInteractiveSync,
   useMediaSession,
+  usePersistPlaybackRate,
   usePersistVolume,
   useRememberedVrProjection,
   useTrackActivity,
@@ -227,6 +228,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const abLoop = useAbLoop(store, player, scene.id);
   const autoplayMuted = useRef(false);
   usePersistVolume(store, autoplayMuted);
+  usePersistPlaybackRate(media);
   useWakeLock(store);
   useTrackActivity({
     store,

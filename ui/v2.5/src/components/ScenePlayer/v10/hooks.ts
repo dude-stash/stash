@@ -127,6 +127,43 @@ export function usePersistVolume(
   }, [store, autoplayMuted]);
 }
 
+const rateKey = "playback-rate";
+
+// Remembers the playback speed across scenes and reloads, which v7 didn't do.
+export function usePersistPlaybackRate(media: HTMLMediaElement | null) {
+  const [rate, setRate] = useState<number>();
+
+  useEffect(() => {
+    localForage.getItem<number>(rateKey).then((value) => setRate(value ?? 1));
+  }, []);
+
+  useEffect(() => {
+    if (!media || rate === undefined) return;
+    const el = media;
+    const saved = rate;
+
+    function apply() {
+      el.defaultPlaybackRate = saved;
+      el.playbackRate = saved;
+    }
+
+    // Loading a source resets the speed, which isn't the viewer's choice, so only changes on loaded media are kept.
+    function onRateChange() {
+      if (el.readyState < 1 || el.playbackRate === saved) return;
+      setRate(el.playbackRate);
+      localForage.setItem(rateKey, el.playbackRate);
+    }
+
+    apply();
+    el.addEventListener("loadedmetadata", apply);
+    el.addEventListener("ratechange", onRateChange);
+    return () => {
+      el.removeEventListener("loadedmetadata", apply);
+      el.removeEventListener("ratechange", onRateChange);
+    };
+  }, [media, rate]);
+}
+
 interface IMediaSessionOptions {
   title: string;
   artist: string;
