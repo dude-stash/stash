@@ -1195,6 +1195,7 @@
       "field_name_required": "Field name is required",
       "field_name_whitespace": "Field name cannot have leading or trailing whitespace"
     },
+    "file_not_found": "File not found",
     "header": "Error",
     "image_index_greater_than_zero": "Image index must be greater than 0",
     "invalid_javascript_string": "Invalid javascript code: {error}",

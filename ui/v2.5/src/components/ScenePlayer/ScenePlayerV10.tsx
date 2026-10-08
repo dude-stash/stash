@@ -9,6 +9,7 @@ import "@videojs/html/video/player";
 import "@videojs/html/video/skin";
 import "@videojs/html/extensions/google-cast";
 import cx from "classnames";
+import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
 import { useSystemStatus } from "src/core/StashService";
@@ -39,6 +40,7 @@ interface IPlayerStore {
   play: () => Promise<void>;
   pause: () => void;
   seek: (time: number) => Promise<number>;
+  dismissError: () => void;
   subscribe: (listener: () => void) => () => void;
 }
 
@@ -72,6 +74,19 @@ function getStreams(scene: GQL.SceneDataFragment): IStream[] {
     const kind = getStreamKind(stream.url);
     return kind ? [{ kind, url: stream.url, label: stream.label ?? kind }] : [];
   });
+}
+
+// A media error looks the same for a missing file and an unsupported one, so ask the server.
+async function isFileMissing(url: string) {
+  const controller = new AbortController();
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    return response.status === 404;
+  } catch {
+    return false;
+  } finally {
+    controller.abort();
+  }
 }
 
 function getFallback(streams: IStream[], current: IStream) {
@@ -140,6 +155,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   );
 
   const [stream, setStream] = useState<IStream>();
+  const [missingFile, setMissingFile] = useState(false);
   const [loadedKinds, setLoadedKinds] = useState<StreamKind[]>(["direct"]);
   const [time, setTime] = useState(0);
   const [showScrubber, setShowScrubber] = useState(false);
@@ -237,6 +253,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       (interfaceConfig?.autostartVideo ?? false) ||
       initialTimestamp > 0;
     setTime(start);
+    setMissingFile(false);
     setStream(streams[0]);
   }, [
     scene,
@@ -293,11 +310,23 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       }
     }
 
-    function onError() {
+    let active = true;
+
+    async function onError() {
       const code = el.error?.code;
-      if (code === MEDIA_ERR_DECODE || code === MEDIA_ERR_SRC_NOT_SUPPORTED) {
-        fallBack();
+      if (code !== MEDIA_ERR_DECODE && code !== MEDIA_ERR_SRC_NOT_SUPPORTED) {
+        return;
       }
+
+      // Every other stream is transcoded from the same file, so there is nothing to fall back to.
+      if (current.kind === "direct" && (await isFileMissing(current.url))) {
+        if (!active) return;
+        getStore()?.dismissError();
+        setMissingFile(true);
+        return;
+      }
+
+      if (active) fallBack();
     }
 
     el.addEventListener("loadedmetadata", onLoadedMetadata);
@@ -305,6 +334,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     if (el.readyState >= 1) onLoadedMetadata();
 
     return () => {
+      active = false;
       el.removeEventListener("loadedmetadata", onLoadedMetadata);
       el.removeEventListener("error", onError);
     };
@@ -479,6 +509,14 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
               </option>
             ))}
           </select>
+        )}
+        {missingFile && (
+          <div className="videojs-10-missing-file">
+            <h5>
+              <FormattedMessage id="errors.file_not_found" />
+            </h5>
+            <span>{file?.path}</span>
+          </div>
         )}
       </div>
       {file && showScrubber && (
