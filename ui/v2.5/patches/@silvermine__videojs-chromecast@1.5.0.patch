@@ -94,7 +94,7 @@ index 6ad6c5803b073246942b63dffb130c0047e20091..09d2829ef960fd3958ea2f413af6601c
  }
  
 diff --git a/src/js/tech/ChromecastTech.js b/src/js/tech/ChromecastTech.js
-index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a095c7b8070f34106b34145b3ee7266929900fc5 100644
+index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..bfd077c76101e3fc8a2367891da75d85aa72bb9a 100644
 --- a/src/js/tech/ChromecastTech.js
 +++ b/src/js/tech/ChromecastTech.js
 @@ -62,6 +62,8 @@ module.exports = function(videojs) {
@@ -120,9 +120,13 @@ index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a095c7b8070f34106b34145b3ee72669
           this.ready(function() {
              this.setMuted(options.muted);
           }.bind(this));
-@@ -218,6 +225,10 @@ module.exports = function(videojs) {
+@@ -216,8 +223,13 @@ module.exports = function(videojs) {
+ 
+          this._isMediaLoading = true;
           this._hasPlayedCurrentItem = false;
-          castSession.loadMedia(request)
+-         castSession.loadMedia(request)
++         // After a page reload, or on coming back to the scene, the device may still be playing this stream, so it carries on instead of starting over.
++         (this._isOnDevice(request) ? Promise.resolve() : castSession.loadMedia(request))
              .then(function() {
 +               // The player may have been disposed while the device was loading.
 +               if (this.isDisposed()) {
@@ -131,8 +135,14 @@ index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a095c7b8070f34106b34145b3ee72669
                 this._clearSessionTimeout();
                 if (!this._hasPlayedAnyItem) {
                    // `triggerReady` is required here to notify the Video.js
-@@ -230,7 +241,11 @@ module.exports = function(videojs) {
+@@ -228,12 +240,28 @@ module.exports = function(videojs) {
+                this.trigger('loadeddata');
+                this.trigger('play');
                 this.trigger('playing');
++               // A stream taken over while paused stays paused.
++               if (this.paused()) {
++                  this.trigger('pause');
++               }
                 this._hasPlayedAnyItem = true;
                 this._isMediaLoading = false;
 -               this._getMediaSession().addUpdateListener(this._onMediaSessionStatusChanged.bind(this));
@@ -144,7 +154,18 @@ index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a095c7b8070f34106b34145b3ee72669
              }.bind(this), this._triggerErrorEvent.bind(this));
        }
  
-@@ -462,6 +477,18 @@ module.exports = function(videojs) {
++      _isOnDevice(request) {
++         var mediaSession = this._getMediaSession(),
++             media = mediaSession && mediaSession.playerState !== chrome.cast.media.PlayerState.IDLE && mediaSession.media;
++
++         // Signed URLs change between page loads, so only the address without its query is compared.
++         return !!media && media.contentId.split('?')[0] === request.media.contentId.split('?')[0];
++      }
++
+       /**
+        * Manually updates the current time. The playback position will jump to
+        * the given time and continue playing if the item was playing when `setCurrentTime`
+@@ -462,6 +490,18 @@ module.exports = function(videojs) {
           return true;
        }
  
