@@ -701,3 +701,28 @@ $sceneTabWidth: 450px;
     }
   }
 }
+
+.VideoPlayer.videojs-10 {
+  .videojs-10-skin {
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .videojs-10-source-select {
+    max-width: 14rem;
+    opacity: 0.4;
+    position: absolute;
+    right: 0.5rem;
+    top: 0.5rem;
+    width: auto;
+    z-index: 1;
+
+    &:hover,
+    &:focus {
+      opacity: 1;
+    }
+  }
+}

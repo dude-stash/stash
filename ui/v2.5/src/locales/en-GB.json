@@ -857,6 +857,10 @@
           "show_scrubber": "Show scrubber",
           "show_range_markers": "Show range markers",
           "track_activity": "Enable scene play history",
+          "use_videojs_10": {
+            "description": "Experimental. Plays scenes in the new Video.js 10 player. Markers show as chapters only, and VR, A/B loop, MP4/WebM transcodes and play history are not supported.",
+            "heading": "Use Video.js 10 player"
+          },
           "vr_tag": {
             "description": "The VR button will only be displayed for scenes with this tag.",
             "heading": "VR tag"

@@ -386,6 +386,13 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             onChange={(v) => saveUI({ enableChromecast: v })}
           />
           <BooleanSetting
+            id="use-videojs-10"
+            headingID="config.ui.scene_player.options.use_videojs_10.heading"
+            subHeadingID="config.ui.scene_player.options.use_videojs_10.description"
+            checked={ui.useVideoJs10 ?? undefined}
+            onChange={(v) => saveUI({ useVideoJs10: v })}
+          />
+          <BooleanSetting
             id="disable-mobile-media-auto-rotate"
             headingID="config.ui.scene_player.options.disable_mobile_media_auto_rotate"
             checked={ui.disableMobileMediaAutoRotateEnabled ?? undefined}

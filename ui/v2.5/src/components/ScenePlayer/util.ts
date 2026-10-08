@@ -4,7 +4,11 @@ export const VIDEO_PLAYER_ID = "VideoJsPlayer";
 
 export const getPlayer = () => videojs.getPlayer(VIDEO_PLAYER_ID);
 
-export const getPlayerPosition = () => getPlayer()?.currentTime();
+type V10PlayerElement = HTMLElement & { store?: { currentTime: number } };
+
+export const getPlayerPosition = () =>
+  getPlayer()?.currentTime() ??
+  document.querySelector<V10PlayerElement>("video-player")?.store?.currentTime;
 
 export type AbLoopOptions = {
   start: number;
