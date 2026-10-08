@@ -14,7 +14,7 @@
       "!src/core/generated-graphql.ts",
       "!src/pluginApi.d.ts",
       "!src/@types/videojs-vr.d.ts",
-      "!src/components/ScenePlayer/v10/skin/**",
+      "!src/components/ScenePlayer/v10/skin",
       "!src/locales/*.json",
       "!public/*.svg"
     ]
