@@ -195,6 +195,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const [loadedKinds, setLoadedKinds] = useState<StreamKind[]>(["direct"]);
   const [time, setTime] = useState(0);
   const [paused, setPaused] = useState(true);
+  const [casting, setCasting] = useState(false);
   const [showScrubber, setShowScrubber] = useState(false);
 
   const sceneId = useRef<string>();
@@ -472,6 +473,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     let ended = store.ended;
     return store.subscribe(() => {
       setPaused(store.paused);
+      setCasting(store.remotePlaybackState === "connected");
       if (!store.paused) setTime(store.currentTime);
       if (store.ended && !ended) onCompleteRef.current();
       ended = store.ended;
@@ -698,6 +700,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
             <Skin
               containerRef={containerRef}
               starting={startPending}
+              casting={casting}
               media={renderMedia()}
               controlsStart={
                 <SkipButton direction="previous" onClick={onPrevious} />

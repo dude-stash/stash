@@ -11,6 +11,7 @@ const Template: React.FC<{ html: string }> = ({ html }) => (
 interface ISkinProps {
   containerRef?: React.Ref<HTMLElement>;
   starting?: boolean;
+  casting?: boolean;
   media: React.ReactNode;
   controlsStart?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
@@ -23,6 +24,7 @@ interface ISkinProps {
 export const Skin: React.FC<ISkinProps> = ({
   containerRef,
   starting,
+  casting,
   media,
   controlsStart,
   controlsAfterPlay,
@@ -35,6 +37,7 @@ export const Skin: React.FC<ISkinProps> = ({
   <media-container
     ref={containerRef}
     data-stash-starting={starting ? "" : undefined}
+    data-stash-casting={casting ? "" : undefined}
     class="media-skin media-container video-skin"
     data-theme="default"
     data-preset="video"
@@ -347,7 +350,7 @@ export const Skin: React.FC<ISkinProps> = ({
                     <media-text token="menu.speed">Speed</media-text>
                   </media-menu-item>
                   <media-menu-separator class="media-menu-separator" />
-                  <media-playback-rate-radio-group class="media-menu-radio-group">
+                  <media-playback-rate-radio-group class="media-menu-radio-group stash-speed-group">
                     <Template
                       html={`<media-menu-radio-item class="media-menu-radio-item"><span data-part="label"></span><media-menu-item-indicator force-mount class="media-menu-item-indicator"><media-icon name="check" class="media-menu-radio-item-icon"></media-icon></media-menu-item-indicator></media-menu-radio-item>`}
                     />

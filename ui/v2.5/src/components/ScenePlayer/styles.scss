@@ -711,6 +711,13 @@ $sceneTabWidth: 450px;
     width: 100%;
   }
 
+  // v10's speed list starts at 0.2x, which Google's Cast receivers don't play.
+  .media-skin[data-stash-casting]
+    .stash-speed-group
+    > [role="menuitemradio"]:first-of-type {
+    display: none;
+  }
+
   .media-skin[data-stash-starting] {
     .media-play-button,
     .stash-big-buttons {

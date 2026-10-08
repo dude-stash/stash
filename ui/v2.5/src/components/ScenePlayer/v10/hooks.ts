@@ -193,7 +193,8 @@ export function usePersistPlaybackRate(
   // The Chromecast starts each load at 1x, so it is sent the remembered speed, and a speed picked while casting is remembered too.
   useEffect(() => {
     if (!store || rate === undefined) return;
-    const saved = rate;
+    // Google's receivers play 0.5x to 2x, so a slower remembered speed casts at 0.5x without being forgotten.
+    const castRate = Math.min(Math.max(rate, 0.5), 2);
     let castMedia: ICastMedia | undefined;
     let lastRate = 0;
 
@@ -208,16 +209,21 @@ export function usePersistPlaybackRate(
       if (current !== castMedia) {
         castMedia = current;
         lastRate = current.playbackRate;
-        if (lastRate !== saved) store.setPlaybackRate(saved);
+        if (lastRate !== castRate) store.setPlaybackRate(castRate);
         return;
+      }
+
+      // v10 only re-reads the speed on a ratechange, and doesn't send one when a cast loads.
+      if (store.playbackRate !== current.playbackRate) {
+        media?.dispatchEvent(new Event("ratechange"));
       }
 
       // A refused speed leaves the rate unchanged, so it can't overwrite the remembered one.
       if (current.playbackRate === lastRate) return;
       lastRate = current.playbackRate;
-      if (lastRate !== saved) remember(lastRate);
+      if (lastRate !== castRate) remember(lastRate);
     });
-  }, [store, rate, remember]);
+  }, [store, media, rate, remember]);
 }
 
 interface IMediaSessionOptions {
