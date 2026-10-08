@@ -703,12 +703,88 @@ $sceneTabWidth: 450px;
 }
 
 .VideoPlayer.videojs-10 {
-  .videojs-10-skin {
+  .media-skin {
     height: 100%;
     left: 0;
     position: absolute;
     top: 0;
     width: 100%;
+  }
+
+  video::cue {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+
+  .stash-control-button {
+    &.active {
+      color: var(--media-accent-color, #48aff0);
+    }
+
+    .fa-icon {
+      height: 1.1em;
+      margin: 0;
+    }
+  }
+
+  .stash-text-button {
+    font-weight: 600;
+  }
+
+  .stash-markers {
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  .stash-marker {
+    background-color: rgba(33, 33, 33, 0.8);
+    border-radius: 1px;
+    height: 10px;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 4px;
+    z-index: 1;
+  }
+
+  .stash-marker-range {
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+    height: 8px;
+    min-width: 8px;
+    pointer-events: auto;
+    position: absolute;
+  }
+
+  .stash-big-buttons {
+    display: none;
+    gap: 2rem;
+    left: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity 0.3s;
+    z-index: 1;
+
+    &.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .media-button {
+      background-color: rgba(0, 0, 0, 0.4);
+      border-radius: 50%;
+      font-size: 1.75rem;
+      height: 3.5rem;
+      width: 3.5rem;
+    }
+
+    @media (pointer: coarse) {
+      display: flex;
+    }
   }
 
   .videojs-10-missing-file {
@@ -726,20 +802,5 @@ $sceneTabWidth: 450px;
     top: 0;
     word-break: break-all;
     z-index: 2;
-  }
-
-  .videojs-10-source-select {
-    max-width: 14rem;
-    opacity: 0.4;
-    position: absolute;
-    right: 0.5rem;
-    top: 0.5rem;
-    width: auto;
-    z-index: 1;
-
-    &:hover,
-    &:focus {
-      opacity: 1;
-    }
   }
 }

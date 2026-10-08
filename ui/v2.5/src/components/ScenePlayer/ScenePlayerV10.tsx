@@ -1,4 +1,5 @@
 import React, {
+  KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -6,14 +7,20 @@ import React, {
   useState,
 } from "react";
 import "@videojs/html/video/player";
-import "@videojs/html/video/skin";
 import "@videojs/html/extensions/google-cast";
 import cx from "classnames";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
-import { useSystemStatus } from "src/core/StashService";
+import {
+  useConfigureInterface,
+  useSceneIncrementPlayCount,
+  useSceneSaveActivity,
+  useSystemStatus,
+} from "src/core/StashService";
 import { useConfigurationContext } from "src/hooks/Config";
+import { ConnectionState } from "src/hooks/Interactive/context";
+import { SceneInteractiveStatus } from "src/hooks/Interactive/status";
 import { languageMap } from "src/utils/caption";
 import {
   pickCastSource,
@@ -23,6 +30,25 @@ import {
 import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
+import { Skin } from "./v10/Skin";
+import { Markers } from "./v10/Markers";
+import {
+  AbLoopButtons,
+  AutostartButton,
+  BigButtons,
+  SeekButton,
+  SkipButton,
+  SourceMenu,
+} from "./v10/controls";
+import {
+  useAbLoop,
+  useInteractiveSync,
+  useMediaSession,
+  usePersistVolume,
+  useTrackActivity,
+  useWakeLock,
+} from "./v10/hooks";
+import { PlayerElement, PlayerStoreContext, seekBy } from "./v10/store";
 
 type StreamKind = "direct" | "hls" | "dash";
 
@@ -31,20 +57,6 @@ interface IStream {
   url: string;
   label: string;
 }
-
-interface IPlayerStore {
-  currentTime: number;
-  paused: boolean;
-  ended: boolean;
-  started: boolean;
-  play: () => Promise<void>;
-  pause: () => void;
-  seek: (time: number) => Promise<number>;
-  dismissError: () => void;
-  subscribe: (listener: () => void) => () => void;
-}
-
-type PlayerElement = HTMLElement & { store?: IPlayerStore };
 
 type MarkerFragment = GQL.SceneDataFragment["scene_markers"][number];
 
@@ -107,9 +119,11 @@ function formatCueTime(seconds: number) {
   return new Date(seconds * 1000).toISOString().slice(11, 23);
 }
 
-// v10 has no marker plugin, but it shows chapter titles on the time slider.
+// The time slider shows chapter titles while hovering, which stands in for v7's marker tooltips.
 function getChaptersVtt(markers: MarkerFragment[], duration: number) {
-  const sorted = [...markers].sort((a, b) => a.seconds - b.seconds);
+  const sorted = markers
+    .filter((m) => m.seconds < duration)
+    .sort((a, b) => a.seconds - b.seconds);
   const cues = sorted.flatMap((marker, i) => {
     const end = sorted[i + 1]?.seconds ?? duration;
     if (end <= marker.seconds) return [];
@@ -139,15 +153,23 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   initialTimestamp,
   sendSetTimestamp,
   onComplete,
+  onNext,
+  onPrevious,
 }) => {
   const { configuration } = useConfigurationContext();
   const interfaceConfig = configuration?.interface;
   const uiConfig = configuration?.ui;
   const castEnabled = uiConfig?.enableChromecast ?? false;
+  const autostartVideo = interfaceConfig?.autostartVideo ?? false;
   const { data: systemStatus } = useSystemStatus();
   const lanIp = pickLanIPv4(systemStatus?.systemStatus.localIPs);
+  const [sceneSaveActivity] = useSceneSaveActivity();
+  const [sceneIncrementPlayCount] = useSceneIncrementPlayCount();
+  const [updateInterfaceConfig] = useConfigureInterface();
 
-  const playerRef = useRef<PlayerElement>(null);
+  const [player, setPlayer] = useState<PlayerElement | null>(null);
+  const store = player?.store;
+  const containerRef = useRef<HTMLElement>(null);
   const [media, setMedia] = useState<HTMLVideoElement | null>(null);
   const mediaRef = useCallback(
     (el: HTMLElement | null) => setMedia(el as HTMLVideoElement | null),
@@ -158,6 +180,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const [missingFile, setMissingFile] = useState(false);
   const [loadedKinds, setLoadedKinds] = useState<StreamKind[]>(["direct"]);
   const [time, setTime] = useState(0);
+  const [paused, setPaused] = useState(true);
   const [showScrubber, setShowScrubber] = useState(false);
 
   const sceneId = useRef<string>();
@@ -166,8 +189,6 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const pausedBeforeScrubber = useRef(true);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
-
-  const getStore = useCallback(() => playerRef.current?.store, []);
 
   const file = useMemo(
     () => (scene.files.length > 0 ? scene.files[0] : undefined),
@@ -181,6 +202,30 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     permitLoop &&
     maxLoopDuration !== 0 &&
     file.duration < maxLoopDuration;
+
+  const interactive = useInteractiveSync(media, scene, looping);
+  const abLoop = useAbLoop(store, player, scene.id);
+  usePersistVolume(store);
+  useWakeLock(store);
+  useTrackActivity({
+    store,
+    sceneId: scene.id,
+    enabled: uiConfig?.trackActivity ?? true,
+    minimumPlayPercent: uiConfig?.minimumPlayPercent ?? 0,
+    saveActivity: (id, resumeTime, playDuration) =>
+      sceneSaveActivity({
+        variables: { id, playDuration, resume_time: resumeTime },
+      }),
+    incrementPlayCount: (id) => sceneIncrementPlayCount({ variables: { id } }),
+  });
+  useMediaSession(store, {
+    title: objectTitle(scene),
+    artist:
+      scene.studio?.name ?? scene.performers.map((p) => p.name).join(", "),
+    artwork: scene.paths.screenshot ?? "",
+    onNext,
+    onPrevious,
+  });
 
   const castSource = useMemo(() => {
     const source = pickCastSource(scene.sceneStreams, file);
@@ -219,6 +264,17 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     });
   }, [scene, castEnabled, lanIp]);
 
+  const markers = useMemo(
+    () =>
+      scene.scene_markers.map((marker) => ({
+        title: getMarkerTitle(marker),
+        seconds: marker.seconds,
+        end_seconds: marker.end_seconds ?? null,
+        primaryTag: marker.primary_tag,
+      })),
+    [scene.scene_markers]
+  );
+
   const [chaptersUrl, setChaptersUrl] = useState<string>();
   useEffect(() => {
     const vtt = getChaptersVtt(scene.scene_markers, file?.duration ?? 0);
@@ -248,20 +304,18 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     }
 
     pendingStart.current = start || undefined;
-    pendingPlay.current =
-      !!autoplay ||
-      (interfaceConfig?.autostartVideo ?? false) ||
-      initialTimestamp > 0;
+    pendingPlay.current = !!autoplay || autostartVideo || initialTimestamp > 0;
     setTime(start);
     setMissingFile(false);
     setStream(streams[0]);
+    containerRef.current?.focus({ preventScroll: true });
   }, [
     scene,
     file,
     streams,
     initialTimestamp,
     autoplay,
-    interfaceConfig?.autostartVideo,
+    autostartVideo,
     uiConfig?.alwaysStartFromBeginning,
   ]);
 
@@ -278,10 +332,24 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     };
   }, [stream, loadedKinds]);
 
+  // Autostart waits for an interactive scene's script, as in v7.
+  const tryAutoplay = useCallback(() => {
+    if (!pendingPlay.current || interactive.waitingForScript) return;
+    if (!media || media.readyState < 1) return;
+    pendingPlay.current = false;
+    // The store attaches to a new media element a moment after it loads, so only a cast goes through it.
+    const casting = store?.remotePlaybackState === "connected";
+    (casting && store ? store : media).play().catch(() => {});
+  }, [media, store, interactive.waitingForScript]);
+
+  useEffect(tryAutoplay, [tryAutoplay]);
+
   useEffect(() => {
-    if (!media || !stream) return;
+    // Right after a source change the old element is still in state, and must not use up the pending seek.
+    if (!media || !stream || media.getAttribute("src") !== stream.url) return;
     const el = media;
     const current = stream;
+    let active = true;
 
     function fallBack() {
       const next = getFallback(streams, current);
@@ -298,19 +366,12 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
         return;
       }
 
-      const store = getStore();
       if (pendingStart.current) {
-        if (store) store.seek(pendingStart.current);
-        else el.currentTime = pendingStart.current;
+        el.currentTime = pendingStart.current;
         pendingStart.current = undefined;
       }
-      if (pendingPlay.current) {
-        pendingPlay.current = false;
-        (store ?? el).play().catch(() => {});
-      }
+      tryAutoplay();
     }
-
-    let active = true;
 
     async function onError() {
       const code = el.error?.code;
@@ -321,7 +382,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       // Every other stream is transcoded from the same file, so there is nothing to fall back to.
       if (current.kind === "direct" && (await isFileMissing(current.url))) {
         if (!active) return;
-        getStore()?.dismissError();
+        store?.dismissError();
         setMissingFile(true);
         return;
       }
@@ -338,20 +399,20 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       el.removeEventListener("loadedmetadata", onLoadedMetadata);
       el.removeEventListener("error", onError);
     };
-  }, [media, stream, streams, getStore]);
+  }, [media, stream, streams, store, tryAutoplay]);
 
   // The store keeps reflecting playback while casting, unlike the media element's events.
   useEffect(() => {
-    const store = getStore();
     if (!store) return;
 
     let ended = store.ended;
     return store.subscribe(() => {
+      setPaused(store.paused);
       if (!store.paused) setTime(store.currentTime);
       if (store.ended && !ended) onCompleteRef.current();
       ended = store.ended;
     });
-  }, [getStore]);
+  }, [store]);
 
   useEffect(() => {
     media?.toggleAttribute("loop", looping);
@@ -359,12 +420,11 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
 
   useEffect(() => {
     sendSetTimestamp((value: number) => {
-      const store = getStore();
       if (!store || value < 0) return;
       store.seek(value);
       if (!store.started || !store.paused) store.play().catch(() => {});
     });
-  }, [sendSetTimestamp, getStore]);
+  }, [sendSetTimestamp, store]);
 
   useEffect(() => {
     if (hideScrubberOverride) {
@@ -382,14 +442,12 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   }, [hideScrubberOverride]);
 
   function onScrubberScroll() {
-    const store = getStore();
     if (!store?.started) return;
     pausedBeforeScrubber.current = store.paused;
     store.pause();
   }
 
   function onScrubberSeek(seconds: number) {
-    const store = getStore();
     if (!store) return;
     store.seek(seconds);
     setTime(seconds);
@@ -400,10 +458,66 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
 
   function onSelectStream(url: string) {
     const next = streams.find((s) => s.url === url);
-    if (!next || !media) return;
-    pendingStart.current = getStore()?.currentTime ?? media.currentTime;
+    if (!next || !media || next.url === stream?.url) return;
+    pendingStart.current = store?.currentTime ?? media.currentTime;
     pendingPlay.current = !media.paused;
     setStream(next);
+  }
+
+  function onAutostartToggle(enabled: boolean) {
+    updateInterfaceConfig({
+      variables: { input: { autostartVideo: enabled } },
+    });
+  }
+
+  // Space always plays or pauses, even with a control focused, as in v7.
+  function onKeyDownCapture(event: KeyboardEvent) {
+    if (event.key !== " " || !store) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (store.paused) store.play().catch(() => {});
+    else store.pause();
+  }
+
+  // The rest of v7's hotkeys are declared on the skin's media-hotkey elements.
+  function onKeyDown(event: KeyboardEvent) {
+    if (!store) return;
+
+    if (event.key === "MediaTrackNext") onNext();
+    if (event.key === "MediaTrackPrevious") onPrevious();
+
+    if (event.shiftKey && event.key.toLowerCase() === "l") {
+      media?.toggleAttribute("loop", !media.loop);
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+
+    switch (event.key) {
+      case "]":
+        if (store.currentTime + store.duration * 0.1 < store.duration) {
+          seekBy(store, store.duration * 0.1);
+        }
+        break;
+      case "[":
+        seekBy(store, -store.duration * 0.1);
+        break;
+      case "l": {
+        const { options, setOptions } = abLoop;
+        if (!options.start) {
+          setOptions({ ...options, start: store.currentTime });
+        } else if (!options.end) {
+          setOptions({ ...options, end: store.currentTime, enabled: true });
+        } else {
+          setOptions({ start: 0, end: false, enabled: false });
+        }
+        break;
+      }
+    }
   }
 
   const poster = scene.paths.screenshot ?? undefined;
@@ -479,6 +593,8 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   }
 
   const isPortrait = file?.height && file?.width && file.height > file.width;
+  const showRangeMarkers =
+    !ScreenUtils.isMobile() && (uiConfig?.showRangeMarkers ?? true);
 
   return (
     <div
@@ -486,39 +602,74 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
         portrait: isPortrait,
         "no-file": !file,
       })}
+      onKeyDownCapture={onKeyDownCapture}
+      onKeyDown={onKeyDown}
     >
       <div id={VIDEO_PLAYER_ID} className="video-wrapper">
-        <video-player ref={playerRef} content-title={objectTitle(scene)}>
-          <video-skin class="videojs-10-skin">{renderMedia()}</video-skin>
-          {castEnabled && (
-            <google-cast
-              src={castSource?.url}
-              content-type={castSource?.contentType}
-            />
-          )}
-        </video-player>
-        {streams.length > 1 && (
-          <select
-            className="videojs-10-source-select form-control form-control-sm"
-            value={stream?.url}
-            onChange={(e) => onSelectStream(e.currentTarget.value)}
-          >
-            {streams.map((s) => (
-              <option key={s.url} value={s.url}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        )}
-        {missingFile && (
-          <div className="videojs-10-missing-file">
-            <h5>
-              <FormattedMessage id="errors.file_not_found" />
-            </h5>
-            <span>{file?.path}</span>
-          </div>
-        )}
+        <PlayerStoreContext.Provider value={store}>
+          <video-player ref={setPlayer} content-title={objectTitle(scene)}>
+            <Skin
+              containerRef={containerRef}
+              media={renderMedia()}
+              controlsStart={
+                <SkipButton direction="previous" onClick={onPrevious} />
+              }
+              controlsAfterPlay={
+                <>
+                  <SkipButton direction="next" onClick={onNext} />
+                  <SeekButton seconds={-10} />
+                  <SeekButton seconds={10} />
+                </>
+              }
+              controlsEnd={
+                uiConfig?.showAbLoopControls && (
+                  <AbLoopButtons abLoop={abLoop} />
+                )
+              }
+              controlsSecondary={
+                <AutostartButton
+                  enabled={autostartVideo}
+                  onToggle={onAutostartToggle}
+                />
+              }
+              settingsItems={
+                <SourceMenu
+                  sources={streams}
+                  value={stream?.url}
+                  onChange={onSelectStream}
+                />
+              }
+              sliderLayer={
+                <Markers
+                  markers={markers}
+                  duration={file?.duration ?? 0}
+                  showRanges={showRangeMarkers}
+                />
+              }
+            >
+              <BigButtons />
+              {missingFile && (
+                <div className="videojs-10-missing-file">
+                  <h5>
+                    <FormattedMessage id="errors.file_not_found" />
+                  </h5>
+                  <span>{file?.path}</span>
+                </div>
+              )}
+            </Skin>
+            {castEnabled && (
+              <google-cast
+                src={castSource?.url}
+                content-type={castSource?.contentType}
+              />
+            )}
+          </video-player>
+        </PlayerStoreContext.Provider>
       </div>
+      {scene.interactive &&
+        (interactive.state !== ConnectionState.Ready || paused) && (
+          <SceneInteractiveStatus />
+        )}
       {file && showScrubber && (
         <ScenePlayerScrubber
           file={file}
