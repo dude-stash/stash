@@ -131,6 +131,12 @@ const rateKey = "playback-rate";
 
 interface ICastMedia {
   playbackRate: number;
+  mediaSessionId: number;
+  playerState?: string;
+}
+
+interface ICastLoadRequest {
+  media?: { hlsSegmentFormat?: string; hlsVideoSegmentFormat?: string };
 }
 
 type CastGlobal = {
@@ -139,6 +145,12 @@ type CastGlobal = {
       CastContext: {
         getInstance(): {
           getCurrentSession(): { getMediaSession(): ICastMedia | null } | null;
+        };
+      };
+      CastSession?: {
+        prototype: {
+          loadMedia(request: ICastLoadRequest): Promise<unknown>;
+          stashHlsFix?: boolean;
         };
       };
     };
@@ -195,21 +207,14 @@ export function usePersistPlaybackRate(
     if (!store || rate === undefined) return;
     // Google's receivers play 0.5x to 2x, so a slower remembered speed casts at 0.5x without being forgotten.
     const castRate = Math.min(Math.max(rate, 0.5), 2);
-    let castMedia: ICastMedia | undefined;
+    let session: number | undefined;
     let lastRate = 0;
 
     return store.subscribe(() => {
       const current =
         store.remotePlaybackState === "connected" ? getCastMedia() : undefined;
       if (!current) {
-        castMedia = undefined;
-        return;
-      }
-
-      if (current !== castMedia) {
-        castMedia = current;
-        lastRate = current.playbackRate;
-        if (lastRate !== castRate) store.setPlaybackRate(castRate);
+        session = undefined;
         return;
       }
 
@@ -218,12 +223,52 @@ export function usePersistPlaybackRate(
         media?.dispatchEvent(new Event("ratechange"));
       }
 
-      // A refused speed leaves the rate unchanged, so it can't overwrite the remembered one.
+      // Every load on the receiver, including a cast source switch, is a new media session that starts at 1x.
+      if (current.mediaSessionId !== session) {
+        session = current.mediaSessionId;
+        lastRate = current.playbackRate;
+        if (lastRate !== castRate) store.setPlaybackRate(castRate);
+        return;
+      }
+
+      // A refused speed leaves the rate unchanged, and a reset while loading or stopped isn't the viewer's choice.
       if (current.playbackRate === lastRate) return;
       lastRate = current.playbackRate;
+      if (
+        current.playerState !== "PLAYING" &&
+        current.playerState !== "PAUSED"
+      ) {
+        return;
+      }
       if (lastRate !== castRate) remember(lastRate);
     });
   }, [store, media, rate, remember]);
+}
+
+// Stash's HLS is H.264 and AAC in MPEG-TS chunks. v10 labels that with an audio-only TS format and no video format, while v7's casting left both unset and HLS played, so loads go out the v7 way.
+export function useCastHlsFix(store: IPlayerStore | undefined) {
+  useEffect(() => {
+    if (!store) return;
+
+    function patch() {
+      const proto = (window as unknown as CastGlobal).cast?.framework
+        ?.CastSession?.prototype;
+      if (!proto || proto.stashHlsFix) return;
+      const loadMedia = proto.loadMedia;
+      proto.loadMedia = function (request: ICastLoadRequest) {
+        if (request.media?.hlsSegmentFormat === "ts") {
+          delete request.media.hlsSegmentFormat;
+          delete request.media.hlsVideoSegmentFormat;
+        }
+        return loadMedia.call(this, request);
+      };
+      proto.stashHlsFix = true;
+    }
+
+    // The Cast framework loads on its own schedule, long before a session can start.
+    patch();
+    return store.subscribe(patch);
+  }, [store]);
 }
 
 interface IMediaSessionOptions {

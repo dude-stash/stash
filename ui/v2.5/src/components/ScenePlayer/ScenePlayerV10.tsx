@@ -43,6 +43,7 @@ import {
 } from "./v10/controls";
 import {
   useAbLoop,
+  useCastHlsFix,
   useInteractiveSync,
   useMediaSession,
   usePersistPlaybackRate,
@@ -253,6 +254,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const autoplayMuted = useRef(false);
   usePersistVolume(store, autoplayMuted);
   usePersistPlaybackRate(media, store);
+  useCastHlsFix(store);
   useWakeLock(store);
   useTrackActivity({
     store,
