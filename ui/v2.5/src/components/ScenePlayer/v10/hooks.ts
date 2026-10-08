@@ -136,8 +136,22 @@ interface ICastMedia {
 }
 
 interface ICastLoadRequest {
-  media?: { hlsSegmentFormat?: string; hlsVideoSegmentFormat?: string };
+  media?: {
+    hlsSegmentFormat?: string;
+    hlsVideoSegmentFormat?: string;
+    metadata?: { title?: string; subtitle?: string; images?: unknown[] };
+  };
 }
+
+export interface ICastMetadata {
+  title: string;
+  subtitle: string;
+  image?: string;
+}
+
+type CastImageGlobal = {
+  chrome?: { cast?: { Image: new (url: string) => unknown } };
+};
 
 type CastGlobal = {
   cast?: {
@@ -245,8 +259,16 @@ export function usePersistPlaybackRate(
   }, [store, media, rate, remember]);
 }
 
-// Stash's HLS is H.264 and AAC in MPEG-TS chunks. v10 labels that with an audio-only TS format and no video format, while v7's casting left both unset and HLS played, so loads go out the v7 way.
-export function useCastHlsFix(store: IPlayerStore | undefined) {
+// Read by the patched loadMedia, which is shared by every session.
+let castMetadata: ICastMetadata | undefined;
+
+// Stash's corrections to each load request v10 sends the Chromecast.
+export function useCastLoadFixes(
+  store: IPlayerStore | undefined,
+  metadata: ICastMetadata
+) {
+  castMetadata = metadata;
+
   useEffect(() => {
     if (!store) return;
 
@@ -256,10 +278,26 @@ export function useCastHlsFix(store: IPlayerStore | undefined) {
       if (!proto || proto.stashHlsFix) return;
       const loadMedia = proto.loadMedia;
       proto.loadMedia = function (request: ICastLoadRequest) {
-        if (request.media?.hlsSegmentFormat === "ts") {
-          delete request.media.hlsSegmentFormat;
-          delete request.media.hlsVideoSegmentFormat;
+        const media = request.media;
+
+        // Stash's HLS is H.264 and AAC in MPEG-TS. v10 labels it with an audio-only TS format and no video format, while v7's casting left both unset and HLS played.
+        if (media?.hlsSegmentFormat === "ts") {
+          delete media.hlsSegmentFormat;
+          delete media.hlsVideoSegmentFormat;
         }
+
+        // v10 sends no title, and as the image the local poster, whose localhost address the Chromecast can't reach.
+        const CastImage = (window as unknown as CastImageGlobal).chrome?.cast
+          ?.Image;
+        if (media && castMetadata && CastImage) {
+          media.metadata ??= {};
+          media.metadata.title = castMetadata.title;
+          media.metadata.subtitle = castMetadata.subtitle;
+          media.metadata.images = castMetadata.image
+            ? [new CastImage(castMetadata.image)]
+            : [];
+        }
+
         return loadMedia.call(this, request);
       };
       proto.stashHlsFix = true;
