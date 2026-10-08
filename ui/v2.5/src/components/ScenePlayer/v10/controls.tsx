@@ -11,6 +11,7 @@ import {
   faRepeat,
   faRotateLeft,
   faRotateRight,
+  faVrCardboard,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "src/components/Shared/Icon";
@@ -185,6 +186,26 @@ interface IRadioOption {
   label: string;
 }
 
+const RadioItems: React.FC<{ options: IRadioOption[] }> = ({ options }) => (
+  <>
+    {options.map((option) => (
+      <media-menu-radio-item
+        key={option.value}
+        class="media-menu-radio-item"
+        value={option.value}
+      >
+        <span>{option.label}</span>
+        <media-menu-item-indicator
+          force-mount
+          class="media-menu-item-indicator"
+        >
+          <media-icon name="check" class="media-menu-radio-item-icon" />
+        </media-menu-item-indicator>
+      </media-menu-radio-item>
+    ))}
+  </>
+);
+
 // A page in the skin's settings menu, built like its Quality page.
 export const RadioSubmenu: React.FC<{
   id: string;
@@ -222,23 +243,59 @@ export const RadioSubmenu: React.FC<{
           class="media-menu-radio-group"
           value={value}
         >
-          {options.map((option) => (
-            <media-menu-radio-item
-              key={option.value}
-              class="media-menu-radio-item"
-              value={option.value}
-            >
-              <span>{option.label}</span>
-              <media-menu-item-indicator
-                force-mount
-                class="media-menu-item-indicator"
-              >
-                <media-icon name="check" class="media-menu-radio-item-icon" />
-              </media-menu-item-indicator>
-            </media-menu-radio-item>
-          ))}
+          <RadioItems options={options} />
         </media-menu-radio-group>
       </media-menu-content>
+    </>
+  );
+};
+
+// VR modes from a control-bar button next to Cast, opening a menu like the skin's settings one.
+export const VrMenuButton: React.FC<{
+  options: IRadioOption[];
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ options, value, onChange }) => {
+  const group = useCustomEvent<{ value: string }>("value-change", (detail) =>
+    onChange(detail.value)
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        id="stash-vr-trigger"
+        commandfor="stash-vr-popup"
+        className={cx("media-button", "stash-control-button", {
+          active: value !== "off",
+        })}
+        aria-label="VR"
+      >
+        <Icon icon={faVrCardboard} className="media-button-icon" />
+      </button>
+      <media-tooltip
+        trigger="stash-vr-trigger"
+        side="top"
+        class={TOOLTIP_CLASS}
+      >
+        VR
+      </media-tooltip>
+      <media-menu
+        side="top"
+        align="center"
+        class="media-popup media-popup-surface media-menu-popup"
+        id="stash-vr-popup"
+      >
+        <media-menu-content class="media-menu-content">
+          <media-menu-radio-group
+            ref={group.ref}
+            class="media-menu-radio-group"
+            value={value}
+          >
+            <RadioItems options={options} />
+          </media-menu-radio-group>
+        </media-menu-content>
+      </media-menu>
     </>
   );
 };

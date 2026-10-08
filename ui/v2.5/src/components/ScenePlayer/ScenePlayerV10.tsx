@@ -9,8 +9,6 @@ import React, {
 import "@videojs/html/video/player";
 import "@videojs/html/extensions/google-cast";
 import cx from "classnames";
-import { faVrCardboard } from "@fortawesome/free-solid-svg-icons";
-import { Icon } from "src/components/Shared/Icon";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
@@ -41,12 +39,14 @@ import {
   RadioSubmenu,
   SeekButton,
   SkipButton,
+  VrMenuButton,
 } from "./v10/controls";
 import {
   useAbLoop,
   useInteractiveSync,
   useMediaSession,
   usePersistVolume,
+  useRememberedVrProjection,
   useTrackActivity,
   useWakeLock,
 } from "./v10/hooks";
@@ -220,9 +220,8 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     !!uiConfig?.vrTag &&
     scene.tags.some((tag) => tag.name === uiConfig.vrTag) &&
     !isVrDevice();
-  // A projection belongs to the scene it was picked for.
-  const [vr, setVr] = useState({ sceneId: scene.id, projection: "off" });
-  const vrProjection = vr.sceneId === scene.id ? vr.projection : "off";
+  const [vrChoice, setVrChoice] = useRememberedVrProjection();
+  const vrProjection = showVr ? vrChoice : "off";
 
   const interactive = useInteractiveSync(media, scene, looping);
   const abLoop = useAbLoop(store, player, scene.id);
@@ -670,6 +669,15 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
                   <AbLoopButtons abLoop={abLoop} />
                 )
               }
+              controlsSecondary={
+                showVr && (
+                  <VrMenuButton
+                    options={vrOptions}
+                    value={vrChoice}
+                    onChange={setVrChoice}
+                  />
+                )
+              }
               settingsItems={
                 <>
                   <RadioSubmenu
@@ -688,23 +696,6 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
                     value={stream?.url}
                     onChange={onSelectStream}
                   />
-                  {showVr && (
-                    <RadioSubmenu
-                      id="stash-vr-content"
-                      label="VR"
-                      icon={
-                        <Icon
-                          icon={faVrCardboard}
-                          className="media-menu-trigger-item-icon"
-                        />
-                      }
-                      options={vrOptions}
-                      value={vrProjection}
-                      onChange={(projection) =>
-                        setVr({ sceneId: scene.id, projection })
-                      }
-                    />
-                  )}
                   <AutostartMenuItem
                     enabled={autostartVideo}
                     onToggle={onAutostartToggle}
