@@ -225,7 +225,8 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
 
   const interactive = useInteractiveSync(media, scene, looping);
   const abLoop = useAbLoop(store, player, scene.id);
-  usePersistVolume(store);
+  const autoplayMuted = useRef(false);
+  usePersistVolume(store, autoplayMuted);
   useWakeLock(store);
   useTrackActivity({
     store,
@@ -358,11 +359,40 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     if (!media || media.readyState < 1) return;
     pendingPlay.current = false;
     // The store attaches to a new media element a moment after it loads, so only a cast goes through it.
-    const casting = store?.remotePlaybackState === "connected";
-    (casting && store ? store : media).play().catch(() => {});
+    if (store?.remotePlaybackState === "connected") {
+      store.play().catch(() => {});
+      return;
+    }
+
+    const el = media;
+    el.play().catch((error: DOMException) => {
+      // Browsers block autoplay with sound until the page has been interacted with, so it starts muted instead.
+      if (error.name !== "NotAllowedError" || el.muted) return;
+      autoplayMuted.current = true;
+      el.muted = true;
+      el.play().catch(() => {});
+    });
   }, [media, store, interactive.waitingForScript]);
 
   useEffect(tryAutoplay, [tryAutoplay]);
+
+  // The first interaction with the page lifts an autoplay mute, unless it was on the volume controls, which unmute by themselves.
+  useEffect(() => {
+    function onInteraction(event: Event) {
+      if (!autoplayMuted.current) return;
+      autoplayMuted.current = false;
+      const target = event.target as Element | null;
+      if (target?.closest?.("media-mute-button, media-volume-slider")) return;
+      if (media) media.muted = false;
+    }
+
+    document.addEventListener("pointerdown", onInteraction, true);
+    document.addEventListener("keydown", onInteraction, true);
+    return () => {
+      document.removeEventListener("pointerdown", onInteraction, true);
+      document.removeEventListener("keydown", onInteraction, true);
+    };
+  }, [media]);
 
   useEffect(() => {
     // Right after a source change the old element is still in state, and must not use up the pending seek.

@@ -95,7 +95,10 @@ const levelKey = "volume-level";
 const mutedKey = "volume-muted";
 
 // Port of persist-volume.ts, using the same storage keys so v7 and v10 share the setting.
-export function usePersistVolume(store?: IPlayerStore) {
+export function usePersistVolume(
+  store: IPlayerStore | undefined,
+  autoplayMuted: { current: boolean }
+) {
   useEffect(() => {
     if (!store) return;
 
@@ -107,20 +110,21 @@ export function usePersistVolume(store?: IPlayerStore) {
       localForage.getItem<boolean>(mutedKey),
     ]).then(([level, muted]) => {
       if (level !== null) store.setVolume(level);
-      if (muted !== null) store.setMuted(muted);
+      if (muted !== null && !autoplayMuted.current) store.setMuted(muted);
       restored = true;
     });
 
     return store.subscribe(() => {
-      // The Chromecast's volume is its own, so it isn't saved as the browser's.
-      if (!restored || store.remotePlaybackState !== "disconnected") return;
+      // The Chromecast's volume is its own, and an autoplay mute isn't the viewer's choice, so neither is saved.
+      if (!restored || autoplayMuted.current) return;
+      if (store.remotePlaybackState !== "disconnected") return;
       if (store.volume === last.volume && store.muted === last.muted) return;
 
       last = { volume: store.volume, muted: store.muted };
       localForage.setItem(levelKey, store.volume);
       localForage.setItem(mutedKey, store.muted);
     });
-  }, [store]);
+  }, [store, autoplayMuted]);
 }
 
 interface IMediaSessionOptions {
