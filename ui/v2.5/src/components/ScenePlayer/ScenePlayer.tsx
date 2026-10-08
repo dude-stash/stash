@@ -466,6 +466,14 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       const vjs = videojs(videoEl, options);
 
+      // Chrome draws its own cast button on the video, which casts the tab rather than the scene. Safari's AirPlay uses the same switch, so it stays on there.
+      if (uiConfig?.enableChromecast && UAParser().engine.name === "Blink") {
+        vjs.on("loadstart", () => {
+          const video = vjs.el()?.querySelector("video");
+          if (video) video.disableRemotePlayback = true;
+        });
+      }
+
       /* biome-ignore lint/suspicious/noExplicitAny: intentional */
       const settings = (vjs as any).textTrackSettings;
       settings.setValues({
