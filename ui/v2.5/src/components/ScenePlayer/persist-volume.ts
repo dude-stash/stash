@@ -8,6 +8,11 @@ interface IPersistVolumeOptions {
   enabled?: boolean;
 }
 
+// While casting, the volume controls move the device, whose level is not the one chosen for this browser.
+function isCasting(player: VideoJsPlayer) {
+  return !!player.el()?.querySelector(".vjs-tech-chromecast");
+}
+
 class PersistVolumePlugin extends videojs.getPlugin("plugin") {
   enabled: boolean;
 
@@ -17,7 +22,7 @@ class PersistVolumePlugin extends videojs.getPlugin("plugin") {
     this.enabled = options?.enabled ?? true;
 
     player.on("volumechange", () => {
-      if (this.enabled) {
+      if (this.enabled && !isCasting(player)) {
         localForage.setItem(levelKey, player.volume());
         localForage.setItem(mutedKey, player.muted());
       }
@@ -26,17 +31,27 @@ class PersistVolumePlugin extends videojs.getPlugin("plugin") {
     player.ready(() => {
       this.ready();
     });
+
+    // Video.js hands each new tech the volume it last set, which would force the browser's level onto the device.
+    player.on("chromecastConnected", () => {
+      player.getCache().volume = undefined;
+    });
+
+    // The player comes back from casting with the device's volume.
+    player.on("chromecastDisconnected", () => {
+      player.one("loadstart", () => this.ready());
+    });
   }
 
   private ready() {
     localForage.getItem<number>(levelKey).then((value) => {
-      if (value !== null) {
+      if (value !== null && !isCasting(this.player)) {
         this.player.volume(value);
       }
     });
 
     localForage.getItem<boolean>(mutedKey).then((value) => {
-      if (value !== null) {
+      if (value !== null && !isCasting(this.player)) {
         this.player.muted(value);
       }
     });
