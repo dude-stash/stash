@@ -422,7 +422,10 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           airPlay: {
             addButtonToControlBar: uiConfig?.enableChromecast ?? false,
           },
-          chromecast: {},
+          chromecast: {
+            // Just left of fullscreen, like the other player buttons: the AirPlay button is added after fullscreen first.
+            buttonPositionIndex: -2,
+          },
           vttThumbnails: {
             showTimestamp: true,
           },
