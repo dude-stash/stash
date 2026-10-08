@@ -200,6 +200,12 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const sceneId = useRef<string>();
   const pendingStart = useRef<number>();
   const pendingPlay = useRef(false);
+  // Mirrors pendingPlay so the skin can show it is still starting rather than a play button that looks ready.
+  const [startPending, setStartPending] = useState(false);
+  const setPendingPlay = useCallback((value: boolean) => {
+    pendingPlay.current = value;
+    setStartPending(value);
+  }, []);
   const pausedBeforeScrubber = useRef(true);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -327,7 +333,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     }
 
     pendingStart.current = start || undefined;
-    pendingPlay.current = !!autoplay || autostartVideo || initialTimestamp > 0;
+    setPendingPlay(!!autoplay || autostartVideo || initialTimestamp > 0);
     setTime(start);
     setMissingFile(false);
     setStream(streams[0]);
@@ -340,6 +346,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     autoplay,
     autostartVideo,
     uiConfig?.alwaysStartFromBeginning,
+    setPendingPlay,
   ]);
 
   useEffect(() => {
@@ -359,7 +366,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const tryAutoplay = useCallback(() => {
     if (!pendingPlay.current || interactive.waitingForScript) return;
     if (!media || media.readyState < 1) return;
-    pendingPlay.current = false;
+    setPendingPlay(false);
     // The store attaches to a new media element a moment after it loads, so only a cast goes through it.
     if (store?.remotePlaybackState === "connected") {
       store.play().catch(() => {});
@@ -374,7 +381,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       el.muted = true;
       el.play().catch(() => {});
     });
-  }, [media, store, interactive.waitingForScript]);
+  }, [media, store, interactive.waitingForScript, setPendingPlay]);
 
   useEffect(tryAutoplay, [tryAutoplay]);
 
@@ -406,9 +413,12 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
 
     function fallBack() {
       const next = getFallback(streams, current);
-      if (!next) return;
+      if (!next) {
+        setPendingPlay(false);
+        return;
+      }
       pendingStart.current = el.currentTime || pendingStart.current;
-      pendingPlay.current ||= !el.paused;
+      if (!el.paused) setPendingPlay(true);
       setStream(next);
     }
 
@@ -437,6 +447,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
         if (!active) return;
         store?.dismissError();
         setMissingFile(true);
+        setPendingPlay(false);
         return;
       }
 
@@ -452,7 +463,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
       el.removeEventListener("loadedmetadata", onLoadedMetadata);
       el.removeEventListener("error", onError);
     };
-  }, [media, stream, streams, store, tryAutoplay]);
+  }, [media, stream, streams, store, tryAutoplay, setPendingPlay]);
 
   // The store keeps reflecting playback while casting, unlike the media element's events.
   useEffect(() => {
@@ -536,7 +547,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     const next = streams.find((s) => s.url === url);
     if (!next || !media || next.url === stream?.url) return;
     pendingStart.current = store?.currentTime ?? media.currentTime;
-    pendingPlay.current = !media.paused;
+    setPendingPlay(!media.paused);
     setStream(next);
   }
 
@@ -686,6 +697,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
           <video-player ref={setPlayer} content-title={objectTitle(scene)}>
             <Skin
               containerRef={containerRef}
+              starting={startPending}
               media={renderMedia()}
               controlsStart={
                 <SkipButton direction="previous" onClick={onPrevious} />
@@ -744,6 +756,14 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
               }
             >
               <BigButtons />
+              {startPending && (
+                <div className="media-buffering-indicator" data-visible="">
+                  <media-icon
+                    name="spinner"
+                    class="media-buffering-indicator-spinner-icon"
+                  />
+                </div>
+              )}
               {missingFile && (
                 <div className="videojs-10-missing-file">
                   <h5>

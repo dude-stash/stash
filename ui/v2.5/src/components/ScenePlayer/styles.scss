@@ -711,6 +711,14 @@ $sceneTabWidth: 450px;
     width: 100%;
   }
 
+  .media-skin[data-stash-starting] {
+    .media-play-button,
+    .stash-big-buttons {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+  }
+
   video::cue {
     background-color: rgba(0, 0, 0, 0.5);
   }

@@ -10,6 +10,7 @@ const Template: React.FC<{ html: string }> = ({ html }) => (
 // Converted from the Video.js 10.0.1 default video skin (shadcn.videojs.org/r/html/video.json), with slots for Stash's controls.
 interface ISkinProps {
   containerRef?: React.Ref<HTMLElement>;
+  starting?: boolean;
   media: React.ReactNode;
   controlsStart?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
@@ -21,6 +22,7 @@ interface ISkinProps {
 
 export const Skin: React.FC<ISkinProps> = ({
   containerRef,
+  starting,
   media,
   controlsStart,
   controlsAfterPlay,
@@ -32,6 +34,7 @@ export const Skin: React.FC<ISkinProps> = ({
 }) => (
   <media-container
     ref={containerRef}
+    data-stash-starting={starting ? "" : undefined}
     class="media-skin media-container video-skin"
     data-theme="default"
     data-preset="video"
