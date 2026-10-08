@@ -94,7 +94,7 @@ index 6ad6c5803b073246942b63dffb130c0047e20091..09d2829ef960fd3958ea2f413af6601c
  }
  
 diff --git a/src/js/tech/ChromecastTech.js b/src/js/tech/ChromecastTech.js
-index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..bfd077c76101e3fc8a2367891da75d85aa72bb9a 100644
+index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a0aebb5bdfff6ca7c93c260dd074161337a60725 100644
 --- a/src/js/tech/ChromecastTech.js
 +++ b/src/js/tech/ChromecastTech.js
 @@ -62,6 +62,8 @@ module.exports = function(videojs) {
@@ -165,7 +165,86 @@ index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..bfd077c76101e3fc8a2367891da75d85
        /**
         * Manually updates the current time. The playback position will jump to
         * the given time and continue playing if the item was playing when `setCurrentTime`
-@@ -462,6 +490,18 @@ module.exports = function(videojs) {
+@@ -324,7 +352,7 @@ module.exports = function(videojs) {
+        * @see {@link http://docs.videojs.com/Player.html#volume}
+        */
+       volume() {
+-         return this._remotePlayer.volumeLevel;
++         return this._heldValue('volume', this._remotePlayer.volumeLevel);
+       }
+ 
+       /**
+@@ -336,8 +364,8 @@ module.exports = function(videojs) {
+        * @see {@link http://docs.videojs.com/Player.html#volume}
+        */
+       setVolume(volumeLevel) {
+-         this._remotePlayer.volumeLevel = volumeLevel;
+-         this._remotePlayerController.setVolumeLevel();
++         this._hold('volume', volumeLevel);
++         this._sendVolume(volumeLevel);
+          // This event is triggered by the listener on
+          // `RemotePlayerEventType.VOLUME_LEVEL_CHANGED`, but waiting for
+          // that event to fire in response to calls to `setVolume` introduces
+@@ -353,7 +381,7 @@ module.exports = function(videojs) {
+        * @see {@link http://docs.videojs.com/Player.html#muted}
+        */
+       muted() {
+-         return this._remotePlayer.isMuted;
++         return this._heldValue('muted', this._remotePlayer.isMuted);
+       }
+ 
+       /**
+@@ -365,9 +393,47 @@ module.exports = function(videojs) {
+        * @see {@link http://docs.videojs.com/Html5.html#setMuted} for an example
+        */
+       setMuted(isMuted) {
+-         if ((this._remotePlayer.isMuted && !isMuted) || (!this._remotePlayer.isMuted && isMuted)) {
+-            this._remotePlayerController.muteOrUnmute();
++         var castSession = this._getCastSession();
++
++         // muteOrUnmute toggles from the last reported state, which can be out of date, so the wanted state is sent instead.
++         this._hold('muted', isMuted);
++         if (castSession) {
++            castSession.setMute(isMuted);
+          }
++         this._triggerVolumeChangeEvent();
++      }
++
++      // The device reports a change a moment later, sometimes after an older report, so what was asked for is shown until it catches up.
++      _hold(key, value) {
++         this._held = this._held || {};
++         this._held[key] = { value: value, until: Date.now() + 1500 };
++      }
++
++      _heldValue(key, reported) {
++         var held = this._held && this._held[key];
++
++         if (held && held.value !== reported && Date.now() < held.until) {
++            return held.value;
++         }
++         return reported;
++      }
++
++      // A drag asks for a new level every few pixels, so the device is sent at most one every 200ms, and always the last.
++      _sendVolume(volumeLevel) {
++         var castSession = this._getCastSession();
++
++         this._pendingVolume = volumeLevel;
++         if (this._volumeTimer || !castSession) {
++            return;
++         }
++         castSession.setVolume(volumeLevel);
++         this._pendingVolume = undefined;
++         this._volumeTimer = setTimeout(function() {
++            this._volumeTimer = undefined;
++            if (this._pendingVolume !== undefined) {
++               this._sendVolume(this._pendingVolume);
++            }
++         }.bind(this), 200);
+       }
+ 
+       /**
+@@ -462,6 +528,18 @@ module.exports = function(videojs) {
           return true;
        }
  
