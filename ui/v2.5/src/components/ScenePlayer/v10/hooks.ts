@@ -317,24 +317,28 @@ export function useWakeLock(store?: IPlayerStore) {
   }, [store]);
 }
 
-const vrKey = "vr-projection";
-
-// The last VR mode picked, remembered like the volume so every VR scene opens in it.
-export function useRememberedVrProjection(): [string, (value: string) => void] {
-  const [projection, setProjection] = useState("off");
+// A menu choice remembered in the browser like the volume, such as the VR mode or the cast source.
+export function useRememberedChoice(
+  key: string,
+  fallback: string
+): [string, (value: string) => void] {
+  const [choice, setChoice] = useState(fallback);
 
   useEffect(() => {
-    localForage.getItem<string>(vrKey).then((value) => {
-      if (value) setProjection(value);
+    localForage.getItem<string>(key).then((value) => {
+      if (value) setChoice(value);
     });
-  }, []);
+  }, [key]);
 
-  const remember = useCallback((value: string) => {
-    setProjection(value);
-    localForage.setItem(vrKey, value);
-  }, []);
+  const remember = useCallback(
+    (value: string) => {
+      setChoice(value);
+      localForage.setItem(key, value);
+    },
+    [key]
+  );
 
-  return [projection, remember];
+  return [choice, remember];
 }
 
 export interface IAbLoopOptions {

@@ -47,7 +47,7 @@ import {
   useMediaSession,
   usePersistPlaybackRate,
   usePersistVolume,
-  useRememberedVrProjection,
+  useRememberedChoice,
   useTrackActivity,
   useWakeLock,
 } from "./v10/hooks";
@@ -64,10 +64,18 @@ interface IStream {
 
 type MarkerFragment = GQL.SceneDataFragment["scene_markers"][number];
 
+type CastElement = HTMLElement & { src?: string; contentType?: string };
+
 const MEDIA_ERR_DECODE = 3;
 const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 
 const FALLBACK_ORDER: StreamKind[] = ["direct", "hls", "dash"];
+
+const castContentTypes: Record<StreamKind, string> = {
+  direct: "video/mp4",
+  hls: "application/x-mpegURL",
+  dash: "application/dash+xml",
+};
 
 // hls.js and dash.js are only downloaded once a scene needs them.
 const loadMediaElement: Record<StreamKind, () => Promise<unknown>> = {
@@ -184,6 +192,11 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const [player, setPlayer] = useState<PlayerElement | null>(null);
   const store = player?.store;
   const containerRef = useRef<HTMLElement>(null);
+  const [castElement, setCastElement] = useState<CastElement | null>(null);
+  const castRef = useCallback(
+    (el: HTMLElement | null) => setCastElement(el as CastElement | null),
+    []
+  );
   const [media, setMedia] = useState<HTMLVideoElement | null>(null);
   const mediaRef = useCallback(
     (el: HTMLElement | null) => setMedia(el as HTMLVideoElement | null),
@@ -228,7 +241,11 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     !!uiConfig?.vrTag &&
     scene.tags.some((tag) => tag.name === uiConfig.vrTag) &&
     !isVrDevice();
-  const [vrChoice, setVrChoice] = useRememberedVrProjection();
+  const [vrChoice, setVrChoice] = useRememberedChoice("vr-projection", "off");
+  const [castChoice, setCastChoice] = useRememberedChoice(
+    "cast-source",
+    "auto"
+  );
   const vrProjection = showVr ? vrChoice : "off";
 
   const interactive = useInteractiveSync(media, scene, looping);
@@ -257,14 +274,24 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     onPrevious,
   });
 
+  const autoCast = useMemo(
+    () => pickCastSource(scene.sceneStreams, file),
+    [scene, file]
+  );
+  const autoCastLabel = streams.find((s) => s.url === autoCast?.url)?.label;
+
+  // A source picked while casting, such as HLS for a Chromecast that can't decode HEVC, carries over to later scenes by its label.
+  const chosenCast = streams.find((s) => s.label === castChoice);
   const castSource = useMemo(() => {
-    const source = pickCastSource(scene.sceneStreams, file);
+    const source = chosenCast
+      ? { url: chosenCast.url, contentType: castContentTypes[chosenCast.kind] }
+      : autoCast;
     if (!source) return undefined;
     return {
       url: rewriteCastUrl(source.url, lanIp),
       contentType: source.contentType,
     };
-  }, [scene, file, lanIp]);
+  }, [chosenCast, autoCast, lanIp]);
 
   // The Chromecast fetches caption tracks itself, so they need the LAN address too.
   const captions = useMemo(() => {
@@ -484,6 +511,28 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     media?.toggleAttribute("loop", looping);
   }, [media, looping]);
 
+  const appliedCast = useRef<{ element: CastElement; key: string }>();
+  useEffect(() => {
+    if (!castElement) return;
+    // Until a new scene's stream is set the old video is still loaded, and the cast would start from its position.
+    if (stream && !streams.some((s) => s.url === stream.url)) return;
+
+    const key = `${castSource?.url} ${castSource?.contentType}`;
+    const applied = appliedCast.current;
+    if (applied?.element === castElement && applied.key === key) return;
+    appliedCast.current = { element: castElement, key };
+
+    // The Chromecast starts from the local video's position, which before it loads is the start position set here.
+    if (media && media.readyState < 1 && pendingStart.current) {
+      media.currentTime = pendingStart.current;
+    }
+
+    // Both settings reload a connected Chromecast, so the address is cleared first to make a source change a single load.
+    castElement.src = "";
+    castElement.contentType = castSource?.contentType;
+    castElement.src = castSource?.url;
+  }, [castElement, castSource, stream, streams, media]);
+
   // three.js is only downloaded once a VR projection is picked.
   useEffect(() => {
     const container = containerRef.current;
@@ -551,6 +600,12 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     pendingStart.current = store?.currentTime ?? media.currentTime;
     setPendingPlay(!media.paused);
     setStream(next);
+  }
+
+  // The Chromecast reloads at the paused local video's position, so that is moved to where the TV is first.
+  function onSelectCastSource(value: string) {
+    if (media && store) media.currentTime = store.currentTime;
+    setCastChoice(value);
   }
 
   function onAutostartToggle(enabled: boolean) {
@@ -730,19 +785,33 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
                 <>
                   <RadioSubmenu
                     id="stash-source-content"
-                    label="Source"
+                    label={casting ? "Cast source" : "Source"}
                     icon={
                       <media-icon
                         name="switches"
                         class="media-menu-trigger-item-icon"
                       />
                     }
-                    options={streams.map((s) => ({
-                      value: s.url,
-                      label: s.label,
-                    }))}
-                    value={stream?.url}
-                    onChange={onSelectStream}
+                    options={
+                      casting
+                        ? [
+                            {
+                              value: "auto",
+                              label: autoCastLabel
+                                ? `Auto (${autoCastLabel})`
+                                : "Auto",
+                            },
+                            ...streams.map((s) => ({
+                              value: s.label,
+                              label: s.label,
+                            })),
+                          ]
+                        : streams.map((s) => ({ value: s.url, label: s.label }))
+                    }
+                    value={
+                      casting ? (chosenCast?.label ?? "auto") : stream?.url
+                    }
+                    onChange={casting ? onSelectCastSource : onSelectStream}
                   />
                   <AutostartMenuItem
                     enabled={autostartVideo}
@@ -776,12 +845,7 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
                 </div>
               )}
             </Skin>
-            {castEnabled && (
-              <google-cast
-                src={castSource?.url}
-                content-type={castSource?.contentType}
-              />
-            )}
+            {castEnabled && <google-cast ref={castRef} />}
           </video-player>
         </PlayerStoreContext.Provider>
       </div>
