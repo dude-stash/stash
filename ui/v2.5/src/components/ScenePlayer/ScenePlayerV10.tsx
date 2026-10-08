@@ -397,8 +397,9 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   }, [media]);
 
   useEffect(() => {
-    // Right after a source change the old element is still in state, and must not use up the pending seek.
+    // Right after a source or scene change the old media is still loaded, and must not use up the new scene's pending seek and play.
     if (!media || !stream || media.getAttribute("src") !== stream.url) return;
+    if (!streams.some((s) => s.url === stream.url)) return;
     const el = media;
     const current = stream;
     let active = true;
