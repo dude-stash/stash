@@ -1,3 +1,23 @@
+diff --git a/src/js/chromecast/ChromecastSessionManager.js b/src/js/chromecast/ChromecastSessionManager.js
+index a394e7901522442e0126e863c9b6c03f720f543b..f031736f2e08b159a4d2c09ef147df0ad83f5439 100644
+--- a/src/js/chromecast/ChromecastSessionManager.js
++++ b/src/js/chromecast/ChromecastSessionManager.js
+@@ -85,6 +85,15 @@ class ChromecastSessionManager {
+          this.player.trigger('chromecastDisconnected');
+          this._reloadTech();
+       }
++      // After a page reload the SDK rejoins the cast this tab started, so the player picks it up again.
++      if (event.sessionState === cast.framework.SessionState.SESSION_RESUMED) {
++         ChromecastSessionManager.hasConnected = true;
++         this.player.trigger('chromecastConnected');
++         // Without a source yet, the player picks this tech once it is given one.
++         if (this.player.currentSrc()) {
++            this._reloadTech();
++         }
++      }
+    }
+ 
+    /**
 diff --git a/src/js/components/ChromecastButton.js b/src/js/components/ChromecastButton.js
 index e50a3f83a2c524776ce441347c1521664df49b69..8950998a691d6714b1f0fe16593d482663f198a6 100644
 --- a/src/js/components/ChromecastButton.js
@@ -56,6 +76,23 @@ index e50a3f83a2c524776ce441347c1521664df49b69..8950998a691d6714b1f0fe16593d4826
        /**
         * Re-calculates which CSS classes the button needs and sets them on the buttons'
         * DOMElement.
+diff --git a/src/js/enableChromecast.js b/src/js/enableChromecast.js
+index 6ad6c5803b073246942b63dffb130c0047e20091..09d2829ef960fd3958ea2f413af6601c0fa4608b 100644
+--- a/src/js/enableChromecast.js
++++ b/src/js/enableChromecast.js
+@@ -20,10 +20,8 @@ function configureCastContext(options) {
+ 
+    context.setOptions({
+       receiverApplicationId: options.receiverAppID || chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+-      // Setting autoJoinPolicy to ORIGIN_SCOPED prevents this plugin from automatically
+-      // trying to connect to a preexisting Chromecast session, if one exists. The user
+-      // must end any existing session before trying to cast from this player instance.
+-      autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
++      // Only rejoin a cast this tab started, so a reload keeps it but another tab cannot take it over.
++      autoJoinPolicy: chrome.cast.AutoJoinPolicy.TAB_AND_ORIGIN_SCOPED,
+    });
+ }
+ 
 diff --git a/src/js/tech/ChromecastTech.js b/src/js/tech/ChromecastTech.js
 index 663ea3eadc2cc9f0afc8cd66af4f0769604e48e3..a095c7b8070f34106b34145b3ee7266929900fc5 100644
 --- a/src/js/tech/ChromecastTech.js
