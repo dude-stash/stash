@@ -715,6 +715,16 @@ $sceneTabWidth: 450px;
     background-color: rgba(0, 0, 0, 0.5);
   }
 
+  .stash-vr-canvas {
+    cursor: grab;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    touch-action: none;
+    width: 100%;
+  }
+
   .stash-control-button {
     &.active {
       color: var(--media-accent-color, #48aff0);

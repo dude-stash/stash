@@ -9,6 +9,8 @@ import React, {
 import "@videojs/html/video/player";
 import "@videojs/html/extensions/google-cast";
 import cx from "classnames";
+import { faVrCardboard } from "@fortawesome/free-solid-svg-icons";
+import { Icon } from "src/components/Shared/Icon";
 import { FormattedMessage } from "react-intl";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
@@ -34,11 +36,11 @@ import { Skin } from "./v10/Skin";
 import { Markers } from "./v10/Markers";
 import {
   AbLoopButtons,
-  AutostartButton,
+  AutostartMenuItem,
   BigButtons,
+  RadioSubmenu,
   SeekButton,
   SkipButton,
-  SourceMenu,
 } from "./v10/controls";
 import {
   useAbLoop,
@@ -49,6 +51,7 @@ import {
   useWakeLock,
 } from "./v10/hooks";
 import { PlayerElement, PlayerStoreContext, seekBy } from "./v10/store";
+import type { VRProjection } from "./v10/vr";
 
 type StreamKind = "direct" | "hls" | "dash";
 
@@ -109,6 +112,16 @@ function getFallback(streams: IStream[], current: IStream) {
   }
   return undefined;
 }
+
+const vrOptions: { value: VRProjection | "off"; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "180_LR", label: "180 LR" },
+  { value: "360_TB", label: "360 TB" },
+  { value: "360", label: "360 Mono" },
+];
+
+// VR headset browsers play VR video natively, so v7 left them alone too.
+const isVrDevice = () => /oculusbrowser|\svr\s/i.test(navigator.userAgent);
 
 function getMarkerTitle(marker: MarkerFragment) {
   if (marker.title) return marker.title;
@@ -202,6 +215,14 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     permitLoop &&
     maxLoopDuration !== 0 &&
     file.duration < maxLoopDuration;
+
+  const showVr =
+    !!uiConfig?.vrTag &&
+    scene.tags.some((tag) => tag.name === uiConfig.vrTag) &&
+    !isVrDevice();
+  // A projection belongs to the scene it was picked for.
+  const [vr, setVr] = useState({ sceneId: scene.id, projection: "off" });
+  const vrProjection = vr.sceneId === scene.id ? vr.projection : "off";
 
   const interactive = useInteractiveSync(media, scene, looping);
   const abLoop = useAbLoop(store, player, scene.id);
@@ -418,6 +439,29 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
     media?.toggleAttribute("loop", looping);
   }, [media, looping]);
 
+  // three.js is only downloaded once a VR projection is picked.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (vrProjection === "off" || !media || !container) return;
+
+    const video =
+      media instanceof HTMLVideoElement
+        ? media
+        : (media as unknown as { target: HTMLVideoElement | null }).target;
+    if (!video) return;
+
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+    import("./v10/vr").then(({ startVR }) => {
+      if (!cancelled)
+        stop = startVR(container, video, vrProjection as VRProjection);
+    });
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [media, vrProjection]);
+
   useEffect(() => {
     sendSetTimestamp((value: number) => {
       if (!store || value < 0) return;
@@ -626,18 +670,46 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
                   <AbLoopButtons abLoop={abLoop} />
                 )
               }
-              controlsSecondary={
-                <AutostartButton
-                  enabled={autostartVideo}
-                  onToggle={onAutostartToggle}
-                />
-              }
               settingsItems={
-                <SourceMenu
-                  sources={streams}
-                  value={stream?.url}
-                  onChange={onSelectStream}
-                />
+                <>
+                  <RadioSubmenu
+                    id="stash-source-content"
+                    label="Source"
+                    icon={
+                      <media-icon
+                        name="switches"
+                        class="media-menu-trigger-item-icon"
+                      />
+                    }
+                    options={streams.map((s) => ({
+                      value: s.url,
+                      label: s.label,
+                    }))}
+                    value={stream?.url}
+                    onChange={onSelectStream}
+                  />
+                  {showVr && (
+                    <RadioSubmenu
+                      id="stash-vr-content"
+                      label="VR"
+                      icon={
+                        <Icon
+                          icon={faVrCardboard}
+                          className="media-menu-trigger-item-icon"
+                        />
+                      }
+                      options={vrOptions}
+                      value={vrProjection}
+                      onChange={(projection) =>
+                        setVr({ sceneId: scene.id, projection })
+                      }
+                    />
+                  )}
+                  <AutostartMenuItem
+                    enabled={autostartVideo}
+                    onToggle={onAutostartToggle}
+                  />
+                </>
               }
               sliderLayer={
                 <Markers

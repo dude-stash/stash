@@ -14,7 +14,6 @@ interface ISkinProps {
   controlsStart?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
   controlsEnd?: React.ReactNode;
-  controlsSecondary?: React.ReactNode;
   settingsItems?: React.ReactNode;
   sliderLayer?: React.ReactNode;
 }
@@ -25,7 +24,6 @@ export const Skin: React.FC<ISkinProps> = ({
   controlsStart,
   controlsAfterPlay,
   controlsEnd,
-  controlsSecondary,
   settingsItems,
   sliderLayer,
   children,
@@ -392,7 +390,6 @@ export const Skin: React.FC<ISkinProps> = ({
             </media-menu>
           </media-controls-group>
           <media-controls-group class="video-controls-secondary">
-            {controlsSecondary}
             <media-cast-button
               class="media-button media-cast-button"
               id="vjs-6EpYm0RN-0-5-trigger"

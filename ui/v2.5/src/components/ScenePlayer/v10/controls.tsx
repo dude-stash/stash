@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "@videojs/html/ui/menu-radio-group";
+import "@videojs/html/ui/menu-checkbox-item";
 import cx from "classnames";
 import {
   faBackwardStep,
-  faBan,
   faCirclePlay,
   faForwardStep,
   faPause,
@@ -82,22 +82,6 @@ export const SeekButton: React.FC<{ seconds: number }> = ({ seconds }) => {
     />
   );
 };
-
-export const AutostartButton: React.FC<{
-  enabled: boolean;
-  onToggle: (enabled: boolean) => void;
-}> = ({ enabled, onToggle }) => (
-  <ControlButton
-    id="stash-autostart"
-    label={
-      enabled
-        ? "Auto-start enabled (click to disable)"
-        : "Auto-start disabled (click to enable)"
-    }
-    icon={enabled ? faCirclePlay : faBan}
-    onClick={() => onToggle(!enabled)}
-  />
-);
 
 export const AbLoopButtons: React.FC<{ abLoop: IAbLoop }> = ({ abLoop }) => {
   const store = usePlayerStore();
@@ -179,66 +163,72 @@ export const BigButtons: React.FC = () => {
   );
 };
 
-interface ISourceOption {
-  url: string;
+// React 17 can't listen to custom events, so they are attached by hand through this callback ref.
+function useCustomEvent<T>(type: string, handler: (detail: T) => void) {
+  const handlerRef = useRef(handler);
+  handlerRef.current = handler;
+  const [element, setElement] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!element) return;
+    const listener = (e: Event) =>
+      handlerRef.current((e as CustomEvent<T>).detail);
+    element.addEventListener(type, listener);
+    return () => element.removeEventListener(type, listener);
+  }, [element, type]);
+
+  return { ref: setElement, element };
+}
+
+interface IRadioOption {
+  value: string;
   label: string;
 }
 
-// A Source page in the skin's settings menu, built like its Quality page.
-export const SourceMenu: React.FC<{
-  sources: ISourceOption[];
+// A page in the skin's settings menu, built like its Quality page.
+export const RadioSubmenu: React.FC<{
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  options: IRadioOption[];
   value?: string;
-  onChange: (url: string) => void;
-}> = ({ sources, value, onChange }) => {
-  const groupRef = useRef<HTMLElement>(null);
-  const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  onChange: (value: string) => void;
+}> = ({ id, label, icon, options, value, onChange }) => {
+  const group = useCustomEvent<{ value: string }>("value-change", (detail) =>
+    onChange(detail.value)
+  );
 
-  useEffect(() => {
-    const group = groupRef.current;
-    if (!group) return;
-
-    // React 17 can't listen to custom events, so this one is attached by hand.
-    const listener = (e: Event) =>
-      onChangeRef.current((e as CustomEvent<{ value: string }>).detail.value);
-    group.addEventListener("value-change", listener);
-    return () => group.removeEventListener("value-change", listener);
-  }, []);
-
-  if (sources.length < 2) return null;
-  const current = sources.find((s) => s.url === value);
+  if (options.length < 2) return null;
+  const current = options.find((o) => o.value === value);
 
   return (
     <>
-      <media-menu-item
-        commandfor="stash-source-content"
-        class="media-menu-trigger-item"
-      >
-        <media-icon name="switches" class="media-menu-trigger-item-icon" />
-        Source
+      <media-menu-item commandfor={id} class="media-menu-trigger-item">
+        {icon}
+        {label}
         <span className="media-menu-hint">
           <span className="media-menu-hint-label">{current?.label}</span>
           <media-icon name="chevron" class="media-menu-forward-chevron" />
         </span>
       </media-menu-item>
-      <media-menu-content class="media-menu-content" id="stash-source-content">
+      <media-menu-content class="media-menu-content" id={id}>
         <media-menu-item class="media-menu-back-item">
           <media-icon name="chevron" class="media-menu-back-chevron" />
-          Source
+          {label}
         </media-menu-item>
         <media-menu-separator class="media-menu-separator" />
         <media-menu-radio-group
-          ref={groupRef}
+          ref={group.ref}
           class="media-menu-radio-group"
           value={value}
         >
-          {sources.map((source) => (
+          {options.map((option) => (
             <media-menu-radio-item
-              key={source.url}
+              key={option.value}
               class="media-menu-radio-item"
-              value={source.url}
+              value={option.value}
             >
-              <span>{source.label}</span>
+              <span>{option.label}</span>
               <media-menu-item-indicator
                 force-mount
                 class="media-menu-item-indicator"
@@ -250,5 +240,32 @@ export const SourceMenu: React.FC<{
         </media-menu-radio-group>
       </media-menu-content>
     </>
+  );
+};
+
+// Auto-start as a settings menu row that stays open when toggled.
+export const AutostartMenuItem: React.FC<{
+  enabled: boolean;
+  onToggle: (enabled: boolean) => void;
+}> = ({ enabled, onToggle }) => {
+  const item = useCustomEvent<{ checked: boolean }>(
+    "checked-change",
+    (detail) => onToggle(detail.checked)
+  );
+
+  // React 17 would write checked="false", which still counts as checked, so the property is set instead.
+  useEffect(() => {
+    if (item.element)
+      (item.element as HTMLElement & { checked: boolean }).checked = enabled;
+  }, [item.element, enabled]);
+
+  return (
+    <media-menu-checkbox-item ref={item.ref} class="media-menu-trigger-item">
+      <Icon icon={faCirclePlay} className="media-menu-trigger-item-icon" />
+      Auto-start
+      <span className="media-menu-hint">
+        <span className="media-menu-hint-label">{enabled ? "On" : "Off"}</span>
+      </span>
+    </media-menu-checkbox-item>
   );
 };

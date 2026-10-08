@@ -175,6 +175,9 @@ importers:
       thehandy:
         specifier: ^1.1.0
         version: 1.1.0
+      three:
+        specifier: 0.183.2
+        version: 0.183.2
       ua-parser-js:
         specifier: ^2.0.10
         version: 2.0.10
