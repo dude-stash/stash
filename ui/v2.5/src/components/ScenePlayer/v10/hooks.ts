@@ -129,9 +129,37 @@ export function usePersistVolume(
 
 const rateKey = "playback-rate";
 
-// Remembers the playback speed across scenes and reloads, which v7 didn't do.
-export function usePersistPlaybackRate(media: HTMLMediaElement | null) {
+interface ICastMedia {
+  playbackRate: number;
+}
+
+type CastGlobal = {
+  cast?: {
+    framework?: {
+      CastContext: {
+        getInstance(): {
+          getCurrentSession(): { getMediaSession(): ICastMedia | null } | null;
+        };
+      };
+    };
+  };
+};
+
+const getCastMedia = () =>
+  (window as unknown as CastGlobal).cast?.framework?.CastContext.getInstance()
+    .getCurrentSession()
+    ?.getMediaSession() ?? undefined;
+
+// Remembers the playback speed across scenes, reloads and casts, which v7 didn't do.
+export function usePersistPlaybackRate(
+  media: HTMLMediaElement | null,
+  store: IPlayerStore | undefined
+) {
   const [rate, setRate] = useState<number>();
+  const remember = useCallback((value: number) => {
+    setRate(value);
+    localForage.setItem(rateKey, value);
+  }, []);
 
   useEffect(() => {
     localForage.getItem<number>(rateKey).then((value) => setRate(value ?? 1));
@@ -150,8 +178,7 @@ export function usePersistPlaybackRate(media: HTMLMediaElement | null) {
     // Loading a source resets the speed, which isn't the viewer's choice, so only changes on loaded media are kept.
     function onRateChange() {
       if (el.readyState < 1 || el.playbackRate === saved) return;
-      setRate(el.playbackRate);
-      localForage.setItem(rateKey, el.playbackRate);
+      remember(el.playbackRate);
     }
 
     apply();
@@ -161,7 +188,36 @@ export function usePersistPlaybackRate(media: HTMLMediaElement | null) {
       el.removeEventListener("loadedmetadata", apply);
       el.removeEventListener("ratechange", onRateChange);
     };
-  }, [media, rate]);
+  }, [media, rate, remember]);
+
+  // The Chromecast starts each load at 1x, so it is sent the remembered speed, and a speed picked while casting is remembered too.
+  useEffect(() => {
+    if (!store || rate === undefined) return;
+    const saved = rate;
+    let castMedia: ICastMedia | undefined;
+    let lastRate = 0;
+
+    return store.subscribe(() => {
+      const current =
+        store.remotePlaybackState === "connected" ? getCastMedia() : undefined;
+      if (!current) {
+        castMedia = undefined;
+        return;
+      }
+
+      if (current !== castMedia) {
+        castMedia = current;
+        lastRate = current.playbackRate;
+        if (lastRate !== saved) store.setPlaybackRate(saved);
+        return;
+      }
+
+      // A refused speed leaves the rate unchanged, so it can't overwrite the remembered one.
+      if (current.playbackRate === lastRate) return;
+      lastRate = current.playbackRate;
+      if (lastRate !== saved) remember(lastRate);
+    });
+  }, [store, rate, remember]);
 }
 
 interface IMediaSessionOptions {

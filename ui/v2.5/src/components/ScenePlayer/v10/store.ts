@@ -14,6 +14,8 @@ export interface IPlayerStore {
   isFullscreen: boolean;
   controlsVisible: boolean;
   remotePlaybackState: "disconnected" | "connecting" | "connected";
+  playbackRate: number;
+  setPlaybackRate: (rate: number) => void;
   play: () => Promise<void>;
   pause: () => void;
   seek: (time: number) => Promise<number>;
