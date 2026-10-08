@@ -1,0 +1,124 @@
+diff --git a/dist/default/extension.js b/dist/default/extension.js
+index 0d7ac8d3df89e9bd8b80e6c875cf0679468edb14..b85f4db08b6483b00b9a2a9d33c747049c9476d5 100644
+--- a/dist/default/extension.js
++++ b/dist/default/extension.js
+@@ -30,6 +30,7 @@ var GoogleCastExtension = class {
+ 	#provider = null;
+ 	#override = null;
+ 	#connected = false;
++	#awaitSrc = false;
+ 	constructor(props = {}) {
+ 		Object.assign(this, props);
+ 	}
+@@ -48,6 +49,11 @@ var GoogleCastExtension = class {
+ 		this.#bindProvider();
+ 		target.addEventListener("loadstart", this.#onLoadStart);
+ 		this.#followSource();
++		// Stash: an adopted session waits for the app's src rather than casting the local media's address.
++		if (this.#provider?.adoptSession()) {
++			if (isUndefined(this.#src)) this.#awaitSrc = true;
++			else this.#provider.load();
++		}
+ 	}
+ 	/** @internal Player lifecycle; the player calls it. */
+ 	detach() {
+@@ -96,7 +102,7 @@ var GoogleCastExtension = class {
+ 	*/
+ 	#followSource() {
+ 		const provider = this.#provider;
+-		if (!provider || !this.#connected) return;
++		if (!provider || !this.#connected || this.#awaitSrc) return;
+ 		const { src } = this;
+ 		if (!src || provider.loadedSrc === src) return;
+ 		provider.load();
+@@ -126,6 +132,7 @@ var GoogleCastExtension = class {
+ 	set src(value) {
+ 		if (this.#src === value) return;
+ 		this.#src = value;
++		this.#awaitSrc = false;
+ 		this.#load();
+ 	}
+ 	/** MIME type of the Cast source. When unset, the receiver infers it from the URL. */
+diff --git a/dist/default/provider.js b/dist/default/provider.js
+index cb9d2a47d717c7de9c7ba9d47edbbafa18f87c90..7a9a30d7d5783e7fc41d0154283e7d2ba627dae2 100644
+--- a/dist/default/provider.js
++++ b/dist/default/provider.js
+@@ -73,6 +73,16 @@ var GoogleCastProvider = class {
+ 	bindHooks(hooks) {
+ 		Object.assign(this.#hooks, hooks);
+ 	}
++	/** Stash: takes over a session that an earlier player on the page connected, so leaving a scene page doesn't strand the cast. */
++	adoptSession() {
++		if (!this.#isInit || this.#isCasting || !currentSession()) return false;
++		if (getCastContext()?.getCastState() !== cast.framework.CastState.CONNECTED) return false;
++		this.#isCasting = true;
++		this.#localPaused = false;
++		this.#attachRemoteListeners();
++		this.#hooks.setState?.("connected");
++		return true;
++	}
+ 	hasDevicesAvailable() {
+ 		const state = getCastContext()?.getCastState();
+ 		return !!state && state !== cast.framework.CastState.NO_DEVICES_AVAILABLE;
+diff --git a/dist/dev/extension.js b/dist/dev/extension.js
+index 0fe568df2c197811955fd5708315c690431f536b..cd67854748a1176b8e4c9cfdf7fb85de2d2c4a3a 100644
+--- a/dist/dev/extension.js
++++ b/dist/dev/extension.js
+@@ -30,6 +30,7 @@ var GoogleCastExtension = class {
+ 	#provider = null;
+ 	#override = null;
+ 	#connected = false;
++	#awaitSrc = false;
+ 	constructor(props = {}) {
+ 		Object.assign(this, props);
+ 	}
+@@ -48,6 +49,11 @@ var GoogleCastExtension = class {
+ 		this.#bindProvider();
+ 		target.addEventListener("loadstart", this.#onLoadStart);
+ 		this.#followSource();
++		// Stash: an adopted session waits for the app's src rather than casting the local media's address.
++		if (this.#provider?.adoptSession()) {
++			if (isUndefined(this.#src)) this.#awaitSrc = true;
++			else this.#provider.load();
++		}
+ 	}
+ 	/** @internal Player lifecycle; the player calls it. */
+ 	detach() {
+@@ -96,7 +102,7 @@ var GoogleCastExtension = class {
+ 	*/
+ 	#followSource() {
+ 		const provider = this.#provider;
+-		if (!provider || !this.#connected) return;
++		if (!provider || !this.#connected || this.#awaitSrc) return;
+ 		const { src } = this;
+ 		if (!src || provider.loadedSrc === src) return;
+ 		provider.load();
+@@ -126,6 +132,7 @@ var GoogleCastExtension = class {
+ 	set src(value) {
+ 		if (this.#src === value) return;
+ 		this.#src = value;
++		this.#awaitSrc = false;
+ 		this.#load();
+ 	}
+ 	/** MIME type of the Cast source. When unset, the receiver infers it from the URL. */
+diff --git a/dist/dev/provider.js b/dist/dev/provider.js
+index 77eac0fbb326c963afc87def0f1f4ff9152009ec..6157a5921959c3c92741490a4c67929ecddba200 100644
+--- a/dist/dev/provider.js
++++ b/dist/dev/provider.js
+@@ -73,6 +73,16 @@ var GoogleCastProvider = class {
+ 	bindHooks(hooks) {
+ 		Object.assign(this.#hooks, hooks);
+ 	}
++	/** Stash: takes over a session that an earlier player on the page connected, so leaving a scene page doesn't strand the cast. */
++	adoptSession() {
++		if (!this.#isInit || this.#isCasting || !currentSession()) return false;
++		if (getCastContext()?.getCastState() !== cast.framework.CastState.CONNECTED) return false;
++		this.#isCasting = true;
++		this.#localPaused = false;
++		this.#attachRemoteListeners();
++		this.#hooks.setState?.("connected");
++		return true;
++	}
+ 	hasDevicesAvailable() {
+ 		const state = getCastContext()?.getCastState();
+ 		return !!state && state !== cast.framework.CastState.NO_DEVICES_AVAILABLE;

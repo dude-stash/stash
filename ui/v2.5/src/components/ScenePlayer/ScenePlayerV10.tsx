@@ -523,8 +523,10 @@ export const ScenePlayerV10: React.FC<IScenePlayerProps> = ({
   const appliedCast = useRef<{ element: CastElement; key: string }>();
   useEffect(() => {
     if (!castElement) return;
-    // Until a new scene's stream is set the old video is still loaded, and the cast would start from its position.
-    if (stream && !streams.some((s) => s.url === stream.url)) return;
+    // The cast starts from the local video's position, so it waits for the scene's own video rather than none or the previous scene's.
+    if (!stream || !media || !streams.some((s) => s.url === stream.url)) {
+      return;
+    }
 
     const key = `${castSource?.url} ${castSource?.contentType}`;
     const applied = appliedCast.current;
