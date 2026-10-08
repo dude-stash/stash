@@ -4,7 +4,6 @@ import "@videojs/html/ui/menu-checkbox-item";
 import cx from "classnames";
 import {
   faBackwardStep,
-  faCirclePlay,
   faForwardStep,
   faPause,
   faPlay,
@@ -317,11 +316,14 @@ export const AutostartMenuItem: React.FC<{
   }, [item.element, enabled]);
 
   return (
-    <media-menu-checkbox-item ref={item.ref} class="media-menu-trigger-item">
-      <Icon icon={faCirclePlay} className="media-menu-trigger-item-icon" />
+    <media-menu-checkbox-item
+      ref={item.ref}
+      class="media-menu-trigger-item stash-autostart-item"
+    >
+      <media-icon name="play" class="media-menu-trigger-item-icon" />
       Auto-start
       <span className="media-menu-hint">
-        <span className="media-menu-hint-label">{enabled ? "On" : "Off"}</span>
+        <span className="stash-switch" />
       </span>
     </media-menu-checkbox-item>
   );
