@@ -1,11 +1,18 @@
 package scraper
 
 import (
+	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/stashapp/stash/pkg/models"
 )
+
+// unresolvedPlaceholderRegexp matches any {name} placeholder left over after
+// substitution, indicating the query url references a value that wasn't
+// available (e.g. {url} when the scraped object has no saved URL).
+var unresolvedPlaceholderRegexp = regexp.MustCompile(`{[a-zA-Z0-9_]+}`)
 
 type queryURLReplacements map[string]mappedRegexConfigs
 
@@ -107,13 +114,17 @@ func (p queryURLParameters) applyReplacements(r queryURLReplacements) {
 	}
 }
 
-func (p queryURLParameters) constructURL(url string) string {
+func (p queryURLParameters) constructURL(url string) (string, error) {
 	ret := url
 	for k, v := range p {
 		ret = strings.ReplaceAll(ret, "{"+k+"}", v)
 	}
 
-	return ret
+	if m := unresolvedPlaceholderRegexp.FindString(ret); m != "" {
+		return "", fmt.Errorf("scraper query url %q contains unresolved placeholder %q - the scraped object may be missing the required field", url, m)
+	}
+
+	return ret, nil
 }
 
 // replaceURL does a partial URL Replace ( only url parameter is used)
@@ -122,7 +133,8 @@ func replaceURL(url string, scraperConfig ByURLDefinition) string {
 	queryURL := queryURLParameterFromURL(u)
 	if scraperConfig.QueryURLReplacements != nil {
 		queryURL.applyReplacements(scraperConfig.QueryURLReplacements)
-		u = queryURL.constructURL(scraperConfig.QueryURL)
+		// queryURL always has the "url" key set above, so this cannot fail
+		u, _ = queryURL.constructURL(scraperConfig.QueryURL)
 	}
 	return u
 }
