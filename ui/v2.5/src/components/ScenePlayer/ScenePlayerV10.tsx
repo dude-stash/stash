@@ -18,6 +18,7 @@ import { languageMap } from "src/utils/caption";
 import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
+import { SkipButton } from "./v10/controls";
 import { Skin } from "./v10/Skin";
 
 type StreamKind = "direct" | "hls" | "dash";
@@ -99,6 +100,8 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
   sendSetTimestamp,
+  onNext,
+  onPrevious,
 }) => {
   const store = usePlayer();
   const error = usePlayer((s) => s.error);
@@ -109,6 +112,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   const [stream, setStream] = useState<IStream>();
   const [missingFile, setMissingFile] = useState(false);
   const [showScrubber, setShowScrubber] = useState(false);
+  const [loop, setLoop] = useState(false);
 
   const sceneId = useRef<string>();
   // Where and whether to play once the next source has loaded, so a fallback carries on from the same point.
@@ -255,6 +259,44 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     }
   }
 
+  // Space always plays or pauses, even with a control focused, as in v7.
+  function onKeyDownCapture(event: React.KeyboardEvent) {
+    if (event.key !== " ") return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (store.paused) store.play().catch(() => {});
+    else store.pause();
+  }
+
+  // The rest of v7's shortcuts are the skin's hotkeys.
+  function onKeyDown(event: React.KeyboardEvent) {
+    if (event.key === "MediaTrackNext") onNext();
+    if (event.key === "MediaTrackPrevious") onPrevious();
+
+    if (event.shiftKey && event.key.toLowerCase() === "l") {
+      setLoop((value) => !value);
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+
+    const step = store.duration * 0.1;
+    switch (event.key) {
+      case "]":
+        if (store.currentTime + step < store.duration) {
+          store.seek(store.currentTime + step);
+        }
+        break;
+      case "[":
+        store.seek(Math.max(store.currentTime - step, 0));
+        break;
+    }
+  }
+
   const tracks = (
     <>
       {captions.map((caption) => (
@@ -290,6 +332,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             src={stream.url}
             crossOrigin="anonymous"
             playsInline
+            loop={loop}
             onLoadedMetadata={onLoadedMetadata}
           >
             {tracks}
@@ -302,6 +345,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             src={stream.url}
             crossOrigin="anonymous"
             playsInline
+            loop={loop}
             onLoadedMetadata={onLoadedMetadata}
           >
             {tracks}
@@ -315,6 +359,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             crossOrigin="anonymous"
             playsInline
             preload="metadata"
+            loop={loop}
             onLoadedMetadata={onLoadedMetadata}
           >
             {tracks}
@@ -331,11 +376,17 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
         portrait: isPortrait,
         "no-file": !file,
       })}
+      onKeyDownCapture={onKeyDownCapture}
+      onKeyDown={onKeyDown}
     >
       <div id={VIDEO_PLAYER_ID} className="video-wrapper">
         <Skin
           ref={containerRef}
           media={<Suspense fallback={null}>{renderMedia()}</Suspense>}
+          controlsBeforePlay={
+            <SkipButton direction="previous" onClick={onPrevious} />
+          }
+          controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
         >
           {missingFile && (
             <div className="videojs-10-missing-file">

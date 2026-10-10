@@ -722,6 +722,11 @@ $sceneTabWidth: 450px;
     background-color: rgba(0, 0, 0, 0.5);
   }
 
+  // Font Awesome glyphs fill less of their box than the skin's icons, so they are drawn a little taller to look the same size.
+  .fa-icon.media-button-icon {
+    height: calc(var(--media-spacing) * 4);
+  }
+
   .videojs-10-missing-file {
     align-items: center;
     background-color: rgba(0, 0, 0, 0.75);
