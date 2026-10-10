@@ -128,12 +128,15 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
   autoplay,
+  initialTimestamp,
   sendSetTimestamp,
   onNext,
   onPrevious,
 }) => {
   const { configuration } = useConfigurationContext();
   const autostartVideo = configuration?.interface.autostartVideo ?? false;
+  const alwaysStartFromBeginning =
+    configuration?.ui.alwaysStartFromBeginning ?? false;
   const [updateInterfaceConfig] = useConfigureInterface();
 
   const store = usePlayer();
@@ -218,14 +221,35 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     if (scene.id === sceneId.current) return;
     sceneId.current = scene.id;
 
-    pendingStart.current = undefined;
-    setPendingPlay(!!autoplay || autostartVideo);
+    // As in v7: the requested time, else where the scene was left off.
+    const resumeTime = scene.resume_time ?? 0;
+    let startPosition = initialTimestamp;
+    if (
+      !startPosition &&
+      !alwaysStartFromBeginning &&
+      (file?.duration ?? 0) > resumeTime
+    ) {
+      startPosition = resumeTime;
+    }
+
+    pendingStart.current = startPosition || undefined;
+    setPendingPlay(!!autoplay || autostartVideo || initialTimestamp > 0);
     store.dismissError();
     setMissingFile(false);
     setMarkerTitle(undefined);
     setStream(streams[0]);
     containerRef.current?.focus({ preventScroll: true });
-  }, [scene, streams, store, autoplay, autostartVideo, setPendingPlay]);
+  }, [
+    scene,
+    file,
+    streams,
+    store,
+    autoplay,
+    autostartVideo,
+    alwaysStartFromBeginning,
+    initialTimestamp,
+    setPendingPlay,
+  ]);
 
   const fallBack = useCallback(
     (current: IStream) => {
