@@ -66,6 +66,9 @@ const SubmitStashBoxDraft = lazyComponent(
 const ScenePlayer = lazyComponent(
   () => import("src/components/ScenePlayer/ScenePlayer")
 );
+const ScenePlayerV10 = lazyComponent(
+  () => import("src/components/ScenePlayer/ScenePlayerV10")
+);
 
 const GalleryViewer = lazyComponent(
   () => import("src/components/Galleries/GalleryViewer")
@@ -1041,6 +1044,8 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
     return <ErrorMessage error={`No scene found with id ${id}.`} />;
   }
 
+  const Player = configuration?.ui.useVideoJs10 ? ScenePlayerV10 : ScenePlayer;
+
   return (
     <div className="row">
       <ScenePage
@@ -1063,7 +1068,7 @@ const SceneLoader: React.FC<RouteComponentProps<ISceneParams>> = ({
         onRefreshScene={onRefreshScene}
       />
       <div className={`scene-player-container ${collapsed ? "expanded" : ""}`}>
-        <ScenePlayer
+        <Player
           key="ScenePlayer"
           scene={scene}
           hideScrubberOverride={hideScrubber}

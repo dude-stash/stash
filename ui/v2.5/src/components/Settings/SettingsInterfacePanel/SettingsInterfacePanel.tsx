@@ -380,6 +380,12 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
 
         <SettingSection headingID="config.ui.scene_player.heading">
           <BooleanSetting
+            id="use-videojs-10"
+            headingID="config.ui.scene_player.options.use_videojs_10"
+            checked={ui.useVideoJs10 ?? undefined}
+            onChange={(v) => saveUI({ useVideoJs10: v })}
+          />
+          <BooleanSetting
             id="enable-chromecast"
             headingID="config.ui.scene_player.options.enable_chromecast"
             checked={ui.enableChromecast ?? undefined}
