@@ -10,8 +10,11 @@ import "@videojs/html/video/player";
 import "@videojs/html/extensions/google-cast";
 import cx from "classnames";
 import { FormattedMessage } from "react-intl";
+import { faFilm } from "@fortawesome/free-solid-svg-icons";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
+import { useConfigureInterface } from "src/core/StashService";
+import { Icon } from "src/components/Shared/Icon";
 import { useConfigurationContext } from "src/hooks/Config";
 import { PatchFunction } from "src/patch";
 import { languageMap } from "src/utils/caption";
@@ -19,7 +22,7 @@ import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
 import { Skin } from "./v10/Skin";
-import { SkipButton } from "./v10/controls";
+import { AutostartMenuItem, RadioSubmenu, SkipButton } from "./v10/controls";
 import { PlayerElement, seekBy } from "./v10/store";
 
 type StreamKind = "direct" | "hls" | "dash";
@@ -34,6 +37,9 @@ const MEDIA_ERR_DECODE = 3;
 const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 
 const FALLBACK_ORDER: StreamKind[] = ["direct", "hls", "dash"];
+
+// The v7 player's speeds, rather than Video.js 10's 0.2, 0.7, 1.2 and 1.7.
+const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // hls.js and dash.js are only downloaded once a scene needs them.
 const loadMediaElement: Record<StreamKind, () => Promise<unknown>> = {
@@ -95,12 +101,15 @@ interface IScenePlayerProps {
 const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
+  autoplay,
   sendSetTimestamp,
   onNext,
   onPrevious,
 }) => {
   const { configuration } = useConfigurationContext();
   const castEnabled = configuration?.ui.enableChromecast ?? false;
+  const autostartVideo = configuration?.interface.autostartVideo ?? false;
+  const [updateInterfaceConfig] = useConfigureInterface();
 
   const [player, setPlayer] = useState<PlayerElement | null>(null);
   const store = player?.store;
@@ -115,13 +124,20 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
   const [missingFile, setMissingFile] = useState(false);
   const [loadedKinds, setLoadedKinds] = useState<StreamKind[]>(["direct"]);
   const [time, setTime] = useState(0);
+  const [rate, setRate] = useState(1);
   const [fullscreen, setFullscreen] = useState(false);
   const [showScrubber, setShowScrubber] = useState(false);
 
   const sceneId = useRef<string>();
-  // Where and whether to play once the next source has loaded, so a fallback carries on from the same point.
+  // Where and whether to play once the next source has loaded, so a source switch carries on from the same point.
   const pendingStart = useRef<number>();
   const pendingPlay = useRef(false);
+  // Mirrors pendingPlay so the skin can show it is still starting rather than a play button that looks ready.
+  const [startPending, setStartPending] = useState(false);
+  const setPendingPlay = useCallback((value: boolean) => {
+    pendingPlay.current = value;
+    setStartPending(value);
+  }, []);
   const pausedBeforeScrubber = useRef(true);
 
   const file = useMemo(
@@ -161,12 +177,12 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     sceneId.current = scene.id;
 
     pendingStart.current = undefined;
-    pendingPlay.current = false;
+    setPendingPlay(!!autoplay || autostartVideo);
     setTime(0);
     setMissingFile(false);
     setStream(streams[0]);
     containerRef.current?.focus({ preventScroll: true });
-  }, [scene, streams]);
+  }, [scene, streams, autoplay, autostartVideo, setPendingPlay]);
 
   useEffect(() => {
     if (!stream || loadedKinds.includes(stream.kind)) return;
@@ -181,6 +197,21 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     };
   }, [stream, loadedKinds]);
 
+  const tryAutoplay = useCallback(() => {
+    if (!pendingPlay.current || !media || media.readyState < 1) return;
+    setPendingPlay(false);
+    // The store attaches to a new media element a moment after it loads, so only a cast goes through it.
+    if (store?.remotePlaybackState === "connected") {
+      store.play().catch(() => {});
+      return;
+    }
+
+    // As in v7, a scene the browser won't let start on its own stays paused.
+    media.play().catch(() => {});
+  }, [media, store, setPendingPlay]);
+
+  useEffect(tryAutoplay, [tryAutoplay]);
+
   useEffect(() => {
     // Right after a source or scene change the old media is still loaded, and must not use up the new source's pending seek and play.
     if (!media || !stream || media.getAttribute("src") !== stream.url) return;
@@ -191,9 +222,12 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
 
     function fallBack() {
       const next = getFallback(streams, current);
-      if (!next) return;
+      if (!next) {
+        setPendingPlay(false);
+        return;
+      }
       pendingStart.current = el.currentTime || pendingStart.current;
-      pendingPlay.current ||= !el.paused;
+      if (!el.paused) setPendingPlay(true);
       setStream(next);
     }
 
@@ -208,10 +242,7 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
         el.currentTime = pendingStart.current;
         pendingStart.current = undefined;
       }
-      if (pendingPlay.current) {
-        pendingPlay.current = false;
-        el.play().catch(() => {});
-      }
+      tryAutoplay();
     }
 
     async function onError() {
@@ -225,6 +256,7 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
         if (!active) return;
         store?.dismissError();
         setMissingFile(true);
+        setPendingPlay(false);
         return;
       }
 
@@ -240,13 +272,14 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
       el.removeEventListener("loadedmetadata", onLoadedMetadata);
       el.removeEventListener("error", onError);
     };
-  }, [media, stream, streams, store]);
+  }, [media, stream, streams, store, tryAutoplay, setPendingPlay]);
 
   useEffect(() => {
     if (!store) return;
 
     return store.subscribe(() => {
       setFullscreen(store.isFullscreen);
+      setRate(store.playbackRate);
       if (!store.paused) setTime(store.currentTime);
     });
   }, [store]);
@@ -287,6 +320,20 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     if (store.started && !pausedBeforeScrubber.current) {
       store.play().catch(() => {});
     }
+  }
+
+  function onSelectStream(url: string) {
+    const next = streams.find((s) => s.url === url);
+    if (!next || !media || next.url === stream?.url) return;
+    pendingStart.current = store?.currentTime ?? media.currentTime;
+    setPendingPlay(!media.paused);
+    setStream(next);
+  }
+
+  function onAutostartToggle(enabled: boolean) {
+    updateInterfaceConfig({
+      variables: { input: { autostartVideo: enabled } },
+    });
   }
 
   // Space always plays or pauses, even with a control focused, as in v7.
@@ -415,12 +462,59 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
           <Skin
             containerRef={containerRef}
             remotePlayback={castEnabled}
+            starting={startPending}
             media={renderMedia()}
             controlsBeforePlay={
               <SkipButton direction="previous" onClick={onPrevious} />
             }
             controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
+            settingsStart={
+              <RadioSubmenu
+                id="stash-source-content"
+                label="Source"
+                icon={
+                  <Icon icon={faFilm} className="media-menu-trigger-icon" />
+                }
+                options={streams.map((s) => ({ value: s.url, label: s.label }))}
+                value={stream?.url}
+                onChange={onSelectStream}
+              />
+            }
+            settingsSpeed={
+              <RadioSubmenu
+                id="stash-speed-content"
+                label="Speed"
+                icon={
+                  <media-icon
+                    family="compat"
+                    name="speed"
+                    class="media-menu-trigger-icon"
+                  />
+                }
+                options={PLAYBACK_RATES.map((r) => ({
+                  value: String(r),
+                  label: `${r}×`,
+                }))}
+                value={String(rate)}
+                onChange={(value) => store?.setPlaybackRate(Number(value))}
+              />
+            }
+            settingsEnd={
+              <AutostartMenuItem
+                enabled={autostartVideo}
+                onToggle={onAutostartToggle}
+              />
+            }
           >
+            {startPending && (
+              <div className="media-buffering-indicator" data-visible="">
+                <media-icon
+                  family="compat"
+                  name="spinner"
+                  class="media-buffering-indicator-spinner-icon"
+                />
+              </div>
+            )}
             {missingFile && (
               <div className="videojs-10-missing-file">
                 <h5>

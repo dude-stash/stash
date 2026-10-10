@@ -11,21 +11,30 @@ const Template: React.FC<{ html: string }> = ({ html }) => (
 interface ISkinProps {
   containerRef?: React.Ref<HTMLElement>;
   remotePlayback?: boolean;
+  starting?: boolean;
   media: React.ReactNode;
   controlsBeforePlay?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
+  settingsStart?: React.ReactNode;
+  settingsSpeed?: React.ReactNode;
+  settingsEnd?: React.ReactNode;
 }
 
 export const Skin: React.FC<ISkinProps> = ({
   containerRef,
   remotePlayback,
+  starting,
   media,
   controlsBeforePlay,
   controlsAfterPlay,
+  settingsStart,
+  settingsSpeed,
+  settingsEnd,
   children,
 }) => (
   <media-container
     ref={containerRef}
+    data-stash-starting={starting ? "" : undefined}
     class="media-skin media-container media-video"
     data-theme="compat"
     data-preset="video"
@@ -417,6 +426,7 @@ export const Skin: React.FC<ISkinProps> = ({
                     id="vjs-WU7c3aPF-h-popup"
                   >
                     <media-menu-content class="media-menu-content">
+                      {settingsStart}
                       <media-menu-item
                         commandfor="vjs-WU7c3aPF-1-content"
                         class="media-menu-item"
@@ -499,47 +509,7 @@ export const Skin: React.FC<ISkinProps> = ({
                           />
                         </media-audio-track-radio-group>
                       </media-menu-content>
-                      <media-menu-item
-                        commandfor="vjs-WU7c3aPF-9-content"
-                        class="media-menu-item"
-                      >
-                        <media-icon
-                          family="compat"
-                          name="speed"
-                          class="media-menu-trigger-icon"
-                        />
-                        <media-text token="menu.speed">Speed</media-text>
-                        <span className="media-menu-hint">
-                          <span
-                            data-part="value"
-                            className="media-menu-hint-label"
-                          />
-                          <media-icon
-                            family="compat"
-                            name="chevron"
-                            class="media-menu-forward-chevron"
-                          />
-                        </span>
-                      </media-menu-item>
-                      <media-menu-content
-                        class="media-menu-content"
-                        id="vjs-WU7c3aPF-9-content"
-                      >
-                        <media-menu-item class="media-menu-back-item">
-                          <media-icon
-                            family="compat"
-                            name="chevron"
-                            class="media-menu-back-chevron"
-                          />
-                          <media-text token="menu.speed">Speed</media-text>
-                        </media-menu-item>
-                        <media-menu-separator class="media-menu-separator" />
-                        <media-playback-rate-radio-group class="media-menu-radio-group">
-                          <Template
-                            html={`<media-menu-radio-item class="media-menu-radio-item"><span data-part="label"></span><media-menu-item-indicator force-mount class="media-menu-indicator"><media-icon family="compat" name="check" class="media-menu-radio-icon"></media-icon></media-menu-item-indicator></media-menu-radio-item>`}
-                          />
-                        </media-playback-rate-radio-group>
-                      </media-menu-content>
+                      {settingsSpeed}
                       <media-menu-item
                         commandfor="vjs-WU7c3aPF-d-content"
                         class="media-menu-item"
@@ -583,6 +553,7 @@ export const Skin: React.FC<ISkinProps> = ({
                           />
                         </media-captions-radio-group>
                       </media-menu-content>
+                      {settingsEnd}
                     </media-menu-content>
                   </media-menu>
                 </media-controls-group>
@@ -609,8 +580,6 @@ export const Skin: React.FC<ISkinProps> = ({
     <media-hotkey keys="0-9" action="seekToPercent" />
     <media-hotkey keys="Home" action="seekToPercent" value="0" />
     <media-hotkey keys="End" action="seekToPercent" value="100" />
-    <media-hotkey keys=">" action="speedUp" />
-    <media-hotkey keys="<" action="speedDown" />
     <media-hotkey keys="f" action="toggleFullscreen" />
     {/* As in v7, a click anywhere plays or pauses and a double-click toggles fullscreen; touch keeps the skin's gestures. */}
     <media-gesture type="tap" action="togglePaused" pointer="mouse" />

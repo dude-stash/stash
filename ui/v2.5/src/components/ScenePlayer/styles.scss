@@ -723,8 +723,51 @@ $sceneTabWidth: 450px;
   }
 
   // Font Awesome glyphs fill less of their box than the skin's icons, so they are drawn a little taller to look the same size.
-  .stash-control-button .media-button-icon {
+  .fa-icon.media-button-icon {
     height: calc(var(--media-spacing) * 4);
+  }
+
+  // Menu icons keep the skin's icon box so the labels line up.
+  .fa-icon.media-menu-trigger-icon {
+    height: calc(var(--media-spacing) * 4);
+    margin: 0;
+    width: calc(var(--media-spacing) * 4.5);
+  }
+
+  // Until an auto-started scene plays, its play buttons would look ready while doing nothing.
+  .media-skin[data-stash-starting] .media-play-button {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .stash-switch {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-radius: 9999px;
+    flex-shrink: 0;
+    height: 18px;
+    position: relative;
+    transition: background-color 0.15s;
+    width: 32px;
+
+    &::after {
+      background-color: #fff;
+      border-radius: 50%;
+      content: "";
+      height: 14px;
+      left: 2px;
+      position: absolute;
+      top: 2px;
+      transition: transform 0.15s;
+      width: 14px;
+    }
+  }
+
+  .stash-autostart-item[aria-checked="true"] .stash-switch {
+    background-color: var(--media-accent-color, #48aff0);
+
+    &::after {
+      transform: translateX(14px);
+    }
   }
 
   .videojs-10-missing-file {
