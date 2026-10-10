@@ -770,6 +770,46 @@ $sceneTabWidth: 450px;
     }
   }
 
+  .stash-markers {
+    bottom: 0;
+    left: 0;
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  .stash-marker {
+    background-color: rgba(33, 33, 33, 0.8);
+    cursor: pointer;
+    height: calc(var(--media-spacing) * 2);
+    pointer-events: auto;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s ease;
+    width: 6px;
+    z-index: 1;
+
+    &:hover {
+      transform: translate(-50%, -50%) scale(1.3);
+    }
+  }
+
+  .stash-marker-range {
+    background-color: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    height: 8px;
+    min-width: 8px;
+    pointer-events: auto;
+    position: absolute;
+  }
+
+  .media-time-slider-preview {
+    bottom: calc(100% + var(--stash-range-height, 0px));
+  }
+
   .videojs-10-missing-file {
     align-items: center;
     background-color: rgba(0, 0, 0, 0.75);

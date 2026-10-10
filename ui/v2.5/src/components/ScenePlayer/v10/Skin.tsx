@@ -5,7 +5,9 @@ import {
   Controls,
   Gesture,
   Hotkey,
+  Slider,
   Time,
+  TimeSlider,
   Tooltip,
 } from "@videojs/react";
 import { SpinnerIcon } from "@videojs/react/icons/compat";
@@ -19,16 +21,63 @@ import { ScreenControls } from "./skin/video/shared/screen-controls";
 import { SeekButton } from "./skin/video/shared/seek-button";
 import { SeekIndicator } from "./skin/video/shared/seek-indicator";
 import { StatusAnnouncer } from "./skin/video/shared/status-announcer";
-import { TimeSlider } from "./skin/video/shared/time-slider";
 import { Title } from "./skin/video/shared/title";
 import { BufferingIndicator, Poster } from "./skin/video/shared/video-feedback";
 import { VolumePopover } from "./skin/video/shared/volume-popover";
 import { ISettingsMenuSlots, SettingsMenu } from "./SettingsMenu";
 
-interface IControlsSlots extends ISettingsMenuSlots {
+interface ISeekBarSlots {
+  sliderLayer?: React.ReactNode;
+  sliderPreviewTitle?: string;
+}
+
+interface IControlsSlots extends ISettingsMenuSlots, ISeekBarSlots {
   controlsBeforePlay?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
 }
+
+// The copied skin's seek bar, with places for Stash's layer over the bar and a title in its preview.
+const SeekBar: React.FC<ISeekBarSlots> = ({
+  sliderLayer,
+  sliderPreviewTitle,
+}) => (
+  <div className="video-controls-slider-row">
+    <TimeSlider.Root className="media-time-slider" thumbAlignment="edge">
+      <TimeSlider.Chapters
+        className="media-time-slider-chapters"
+        renderChapter={(props) => (
+          <div className="media-time-slider-chapter" {...props}>
+            <TimeSlider.Track className="media-time-slider-track">
+              <TimeSlider.Buffer className="media-time-slider-buffer" />
+              <TimeSlider.Fill className="media-time-slider-fill" />
+            </TimeSlider.Track>
+          </div>
+        )}
+      />
+      {sliderLayer}
+      <TimeSlider.Thumb className="media-time-slider-thumb" />
+      <TimeSlider.Preview className="media-time-slider-preview">
+        <Slider.Thumbnail.Root className="media-slider-thumbnail">
+          <Slider.Thumbnail.Image className="media-slider-thumbnail-image" />
+        </Slider.Thumbnail.Root>
+        <div className="media-time-slider-preview-meta">
+          <div className="media-time-slider-preview-label">
+            <TimeSlider.Value
+              className="media-time-slider-value"
+              type="pointer"
+            />
+            <TimeSlider.ChapterTitle className="media-time-slider-chapter-title" />
+            {sliderPreviewTitle && (
+              <span className="media-time-slider-chapter-title">
+                {sliderPreviewTitle}
+              </span>
+            )}
+          </div>
+        </div>
+      </TimeSlider.Preview>
+    </TimeSlider.Root>
+  </div>
+);
 
 const CenterSeekButton: React.FC<{ seconds: number }> = ({ seconds }) => (
   <SeekButton
@@ -43,6 +92,8 @@ const CenterSeekButton: React.FC<{ seconds: number }> = ({ seconds }) => (
 const VideoControls: React.FC<IControlsSlots> = ({
   controlsBeforePlay,
   controlsAfterPlay,
+  sliderLayer,
+  sliderPreviewTitle,
   ...settingsSlots
 }) => (
   <Controls.Root>
@@ -63,7 +114,10 @@ const VideoControls: React.FC<IControlsSlots> = ({
             <CenterSeekButton seconds={10} />
           </Controls.Group>
           <div className="video-controls-bottom video-controls-video-bottom">
-            <TimeSlider />
+            <SeekBar
+              sliderLayer={sliderLayer}
+              sliderPreviewTitle={sliderPreviewTitle}
+            />
             <Controls.Group className="video-controls-row">
               <Controls.Group className="video-controls-group video-controls-start">
                 {controlsBeforePlay}
