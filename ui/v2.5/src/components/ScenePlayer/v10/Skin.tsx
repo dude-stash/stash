@@ -8,6 +8,7 @@ import {
   Time,
   Tooltip,
 } from "@videojs/react";
+import { SpinnerIcon } from "@videojs/react/icons/compat";
 import "./skin/styles/video/compat.css";
 import "./skin/video/skin.css";
 import { CaptionsToggle } from "./skin/video/shared/captions-button";
@@ -17,14 +18,14 @@ import { PlayButton } from "./skin/video/shared/play-button";
 import { ScreenControls } from "./skin/video/shared/screen-controls";
 import { SeekButton } from "./skin/video/shared/seek-button";
 import { SeekIndicator } from "./skin/video/shared/seek-indicator";
-import { SettingsMenu } from "./skin/video/shared/settings-menu";
 import { StatusAnnouncer } from "./skin/video/shared/status-announcer";
 import { TimeSlider } from "./skin/video/shared/time-slider";
 import { Title } from "./skin/video/shared/title";
 import { BufferingIndicator, Poster } from "./skin/video/shared/video-feedback";
 import { VolumePopover } from "./skin/video/shared/volume-popover";
+import { ISettingsMenuSlots, SettingsMenu } from "./SettingsMenu";
 
-interface IControlsSlots {
+interface IControlsSlots extends ISettingsMenuSlots {
   controlsBeforePlay?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
 }
@@ -42,6 +43,7 @@ const CenterSeekButton: React.FC<{ seconds: number }> = ({ seconds }) => (
 const VideoControls: React.FC<IControlsSlots> = ({
   controlsBeforePlay,
   controlsAfterPlay,
+  ...settingsSlots
 }) => (
   <Controls.Root>
     <BufferingState className="video-controls-buffering">
@@ -87,7 +89,7 @@ const VideoControls: React.FC<IControlsSlots> = ({
               </Controls.Group>
               <Controls.Group className="video-controls-group">
                 <CaptionsToggle />
-                <SettingsMenu />
+                <SettingsMenu {...settingsSlots} />
               </Controls.Group>
             </Controls.Group>
           </div>
@@ -144,21 +146,29 @@ const Gestures: React.FC = () => (
 
 interface ISkinProps extends IControlsSlots {
   media: React.ReactNode;
+  starting?: boolean;
   children?: React.ReactNode;
 }
 
 // The copied skin's VideoSkin, with Stash's controls, shortcuts and gestures.
 export const Skin = React.forwardRef<HTMLDivElement, ISkinProps>(
-  ({ media, children, ...slots }, ref) => (
+  ({ media, starting, children, ...slots }, ref) => (
     <Container
       ref={ref}
       className="media-skin media-container media-video"
       data-theme="compat"
       data-preset="video"
+      data-stash-starting={starting || undefined}
     >
       {media}
       <Poster />
       <BufferingIndicator />
+      {/* The skin's spinner only shows once playback has begun, so a scene that is still starting gets the same one. */}
+      {starting && (
+        <div className="media-buffering-indicator" data-visible="">
+          <SpinnerIcon className="media-buffering-indicator-spinner-icon" />
+        </div>
+      )}
       <ErrorDialog />
       <Title />
       <VideoControls {...slots} />

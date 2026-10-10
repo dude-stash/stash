@@ -7,18 +7,23 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { faFilm } from "@fortawesome/free-solid-svg-icons";
 import { GoogleCast } from "@videojs/react/extensions/google-cast";
+import { SpeedIcon } from "@videojs/react/icons/compat";
 import { Video, VideoPlayer, usePlayer } from "@videojs/react/video";
 import cx from "classnames";
 import { FormattedMessage } from "react-intl";
+import { Icon } from "src/components/Shared/Icon";
 import * as GQL from "src/core/generated-graphql";
 import { objectTitle } from "src/core/files";
+import { useConfigureInterface } from "src/core/StashService";
+import { useConfigurationContext } from "src/hooks/Config";
 import { PatchFunction } from "src/patch";
 import { languageMap } from "src/utils/caption";
 import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
-import { SkipButton } from "./v10/controls";
+import { AutostartMenuItem, RadioSubmenu, SkipButton } from "./v10/controls";
 import { Skin } from "./v10/Skin";
 
 type StreamKind = "direct" | "hls" | "dash";
@@ -33,6 +38,9 @@ const MEDIA_ERR_DECODE = 3;
 const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
 
 const FALLBACK_ORDER: StreamKind[] = ["direct", "hls", "dash"];
+
+// The v7 player's speeds, rather than Video.js 10's 0.2, 0.7, 1.2 and 1.7.
+const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // hls.js and dash.js are only downloaded once a scene needs them.
 const HlsJsVideo = lazy(() =>
@@ -99,14 +107,20 @@ interface IScenePlayerProps {
 const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
+  autoplay,
   sendSetTimestamp,
   onNext,
   onPrevious,
 }) => {
+  const { configuration } = useConfigurationContext();
+  const autostartVideo = configuration?.interface.autostartVideo ?? false;
+  const [updateInterfaceConfig] = useConfigureInterface();
+
   const store = usePlayer();
   const error = usePlayer((s) => s.error);
   const fullscreen = usePlayer((s) => s.isFullscreen);
   const time = usePlayer((s) => s.currentTime);
+  const rate = usePlayer((s) => s.playbackRate);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [stream, setStream] = useState<IStream>();
@@ -115,9 +129,15 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   const [loop, setLoop] = useState(false);
 
   const sceneId = useRef<string>();
-  // Where and whether to play once the next source has loaded, so a fallback carries on from the same point.
+  // Where and whether to play once the next source has loaded, so a source switch carries on from the same point.
   const pendingStart = useRef<number>();
   const pendingPlay = useRef(false);
+  // Mirrors pendingPlay so the skin can show it is still starting rather than a play button that looks ready.
+  const [startPending, setStartPending] = useState(false);
+  const setPendingPlay = useCallback((value: boolean) => {
+    pendingPlay.current = value;
+    setStartPending(value);
+  }, []);
   const pausedBeforeScrubber = useRef(true);
 
   const file = useMemo(
@@ -157,24 +177,27 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     sceneId.current = scene.id;
 
     pendingStart.current = undefined;
-    pendingPlay.current = false;
+    setPendingPlay(!!autoplay || autostartVideo);
     store.dismissError();
     setMissingFile(false);
     setStream(streams[0]);
     containerRef.current?.focus({ preventScroll: true });
-  }, [scene, streams, store]);
+  }, [scene, streams, store, autoplay, autostartVideo, setPendingPlay]);
 
   const fallBack = useCallback(
     (current: IStream) => {
       const next = getFallback(streams, current);
-      if (!next) return;
+      if (!next) {
+        setPendingPlay(false);
+        return;
+      }
       pendingStart.current = store.currentTime || pendingStart.current;
-      pendingPlay.current ||= !store.paused;
+      if (!store.paused) setPendingPlay(true);
       // The next stream starts without the error, so it isn't taken for its own.
       store.dismissError();
       setStream(next);
     },
-    [streams, store]
+    [streams, store, setPendingPlay]
   );
 
   useEffect(() => {
@@ -193,6 +216,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
         if (!active) return;
         store.dismissError();
         setMissingFile(true);
+        setPendingPlay(false);
         return;
       }
 
@@ -202,7 +226,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     return () => {
       active = false;
     };
-  }, [error, stream, store, fallBack]);
+  }, [error, stream, store, fallBack, setPendingPlay]);
 
   function onLoadedMetadata(e: React.SyntheticEvent<HTMLVideoElement>) {
     const el = e.currentTarget;
@@ -218,9 +242,24 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
       pendingStart.current = undefined;
     }
     if (pendingPlay.current) {
-      pendingPlay.current = false;
+      setPendingPlay(false);
+      // As in v7, a scene the browser won't let start on its own stays paused.
       el.play().catch(() => {});
     }
+  }
+
+  function onSelectStream(url: string) {
+    const next = streams.find((s) => s.url === url);
+    if (!next || next.url === stream?.url) return;
+    pendingStart.current = store.currentTime;
+    setPendingPlay(!store.paused);
+    setStream(next);
+  }
+
+  function onAutostartToggle(enabled: boolean) {
+    updateInterfaceConfig({
+      variables: { input: { autostartVideo: enabled } },
+    });
   }
 
   useEffect(() => {
@@ -387,6 +426,34 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             <SkipButton direction="previous" onClick={onPrevious} />
           }
           controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
+          settingsStart={
+            <RadioSubmenu
+              label="Source"
+              icon={<Icon icon={faFilm} className="media-menu-trigger-icon" />}
+              options={streams.map((s) => ({ value: s.url, label: s.label }))}
+              value={stream?.url}
+              onChange={onSelectStream}
+            />
+          }
+          settingsSpeed={
+            <RadioSubmenu
+              label="Speed"
+              icon={<SpeedIcon className="media-menu-trigger-icon" />}
+              options={PLAYBACK_RATES.map((r) => ({
+                value: String(r),
+                label: `${r}×`,
+              }))}
+              value={String(rate)}
+              onChange={(value) => store.setPlaybackRate(Number(value))}
+            />
+          }
+          settingsEnd={
+            <AutostartMenuItem
+              enabled={autostartVideo}
+              onToggle={onAutostartToggle}
+            />
+          }
+          starting={startPending}
         >
           {missingFile && (
             <div className="videojs-10-missing-file">
