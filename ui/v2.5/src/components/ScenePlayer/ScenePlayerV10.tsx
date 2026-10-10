@@ -25,6 +25,7 @@ import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { setVideoJs10Player, VIDEO_PLAYER_ID } from "./util";
 import { useAbLoop } from "./v10/abloop";
 import { useTrackActivity } from "./v10/activity";
+import { usePersistVolume } from "./v10/volume";
 import {
   AbLoopButtons,
   AutostartMenuItem,
@@ -193,6 +194,8 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     configuration?.ui.minimumPlayPercent ?? 0
   );
 
+  const { applyVolume, onVolumeChange } = usePersistVolume();
+
   useEffect(() => {
     setVideoJs10Player(store);
     return () => setVideoJs10Player(null);
@@ -304,6 +307,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
 
   function onLoadedMetadata(e: React.SyntheticEvent<HTMLVideoElement>) {
     const el = e.currentTarget;
+    applyVolume(el);
 
     // A direct stream whose video codec the browser can't decode loads as audio only.
     if (stream?.kind === "direct" && el.videoWidth === 0) {
@@ -459,6 +463,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             playsInline
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
+            onVolumeChange={onVolumeChange}
           >
             {tracks}
           </HlsJsVideo>
@@ -472,6 +477,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             playsInline
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
+            onVolumeChange={onVolumeChange}
           >
             {tracks}
           </DashVideo>
@@ -486,6 +492,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             preload="metadata"
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
+            onVolumeChange={onVolumeChange}
           >
             {tracks}
           </Video>
