@@ -24,6 +24,7 @@ import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { setVideoJs10Player, VIDEO_PLAYER_ID } from "./util";
 import { useAbLoop } from "./v10/abloop";
+import { useTrackActivity } from "./v10/activity";
 import {
   AbLoopButtons,
   AutostartMenuItem,
@@ -185,6 +186,12 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     !ScreenUtils.isMobile() && (configuration?.ui.showRangeMarkers ?? true);
 
   const abLoop = useAbLoop(scene.id);
+
+  useTrackActivity(
+    scene.id,
+    configuration?.ui.trackActivity ?? true,
+    configuration?.ui.minimumPlayPercent ?? 0
+  );
 
   useEffect(() => {
     setVideoJs10Player(store);
