@@ -858,6 +858,7 @@
           "show_scrubber": "Show scrubber",
           "show_range_markers": "Show range markers",
           "track_activity": "Enable scene play history",
+          "use_videojs_10": "Enable experimental video player",
           "vr_tag": {
             "description": "The VR button will only be displayed for scenes with this tag.",
             "heading": "VR tag"
@@ -1192,6 +1193,7 @@
       "field_name_required": "Field name is required",
       "field_name_whitespace": "Field name cannot have leading or trailing whitespace"
     },
+    "file_not_found": "File not found",
     "header": "Error",
     "image_index_greater_than_zero": "Image index must be greater than 0",
     "invalid_javascript_string": "Invalid javascript code: {error}",
