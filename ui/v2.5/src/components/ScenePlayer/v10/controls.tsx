@@ -7,40 +7,50 @@ import {
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { Icon } from "src/components/Shared/Icon";
+import { RegisterComponent } from "src/patch";
 import { formatLoopTime, IAbLoop, IAbLoopOptions } from "./abloop";
 
 const TOOLTIP_CLASS =
   "media-popup media-popup-safe-area media-popup-transition media-tooltip-popup";
 
 interface IControlButtonProps {
-  id: string;
+  id?: string;
   label: string;
   icon: IconDefinition;
   onClick: () => void;
 }
 
-// A button styled like the skin's own controls, with the skin's tooltip.
+let nextButtonId = 0;
+
+// A button styled like the skin's own controls, with the skin's tooltip. Plugins get it as ScenePlayer.ControlButton.
 const ControlButton: React.FC<IControlButtonProps> = ({
   id,
   label,
   icon,
   onClick,
-}) => (
-  <>
-    <button
-      type="button"
-      id={id}
-      className="media-button stash-control-button"
-      aria-label={label}
-      onClick={onClick}
-    >
-      <Icon icon={icon} className="media-button-icon" />
-    </button>
-    <media-tooltip trigger={id} side="top" class={TOOLTIP_CLASS}>
-      {label}
-    </media-tooltip>
-  </>
-);
+}) => {
+  const [generatedId] = useState(() => `stash-control-${++nextButtonId}`);
+  const buttonId = id ?? generatedId;
+
+  return (
+    <>
+      <button
+        type="button"
+        id={buttonId}
+        className="media-button stash-control-button"
+        aria-label={label}
+        onClick={onClick}
+      >
+        <Icon icon={icon} className="media-button-icon" />
+      </button>
+      <media-tooltip trigger={buttonId} side="top" class={TOOLTIP_CLASS}>
+        {label}
+      </media-tooltip>
+    </>
+  );
+};
+
+RegisterComponent("ScenePlayer.ControlButton", ControlButton);
 
 export const SkipButton: React.FC<{
   direction: "previous" | "next";

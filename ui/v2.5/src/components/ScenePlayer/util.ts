@@ -20,15 +20,16 @@ type V10PlayerElement = HTMLElement & {
   stashAbLoop?: AbLoopPluginApi;
 };
 
-const getV10Player = () =>
+// The experimental Video.js 10 player element, when it is in use.
+export const getVideoJs10Player = () =>
   document.querySelector<V10PlayerElement>("video-player");
 
 export const getPlayerPosition = () =>
-  getPlayer()?.currentTime() ?? getV10Player()?.store?.currentTime;
+  getPlayer()?.currentTime() ?? getVideoJs10Player()?.store?.currentTime;
 
 export const getAbLoopPlugin = () => {
   const player = getPlayer();
-  if (!player) return getV10Player()?.stashAbLoop ?? null;
+  if (!player) return getVideoJs10Player()?.stashAbLoop ?? null;
   const { abLoopPlugin } = player as VideoJsPlayer & {
     abLoopPlugin?: AbLoopPluginApi;
   };

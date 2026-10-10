@@ -25,6 +25,12 @@ import { Skin } from "./v10/Skin";
 import { Markers } from "./v10/Markers";
 import { useAbLoop } from "./v10/abloop";
 import {
+  ControlBarSlot,
+  OverlaySlot,
+  SeekBarSlot,
+  SettingsMenuSlot,
+} from "./v10/slots";
+import {
   AbLoopButtons,
   AutostartMenuItem,
   RadioSubmenu,
@@ -513,9 +519,11 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
             }
             controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
             controlsEnd={
-              configuration?.ui.showAbLoopControls && (
-                <AbLoopButtons abLoop={abLoop} />
-              )
+              <ControlBarSlot scene={scene} player={player}>
+                {configuration?.ui.showAbLoopControls && (
+                  <AbLoopButtons abLoop={abLoop} />
+                )}
+              </ControlBarSlot>
             }
             settingsStart={
               <RadioSubmenu
@@ -549,39 +557,45 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
               />
             }
             settingsEnd={
-              <AutostartMenuItem
-                enabled={autostartVideo}
-                onToggle={onAutostartToggle}
-              />
+              <SettingsMenuSlot scene={scene} player={player}>
+                <AutostartMenuItem
+                  enabled={autostartVideo}
+                  onToggle={onAutostartToggle}
+                />
+              </SettingsMenuSlot>
             }
             sliderLayer={
-              <Markers
-                markers={markers}
-                duration={file?.duration ?? 0}
-                showRanges={showRangeMarkers}
-                onSeek={(seconds) => store?.seek(seconds)}
-                onHover={(marker) => setMarkerTitle(marker?.title)}
-              />
+              <SeekBarSlot scene={scene} player={player}>
+                <Markers
+                  markers={markers}
+                  duration={file?.duration ?? 0}
+                  showRanges={showRangeMarkers}
+                  onSeek={(seconds) => store?.seek(seconds)}
+                  onHover={(marker) => setMarkerTitle(marker?.title)}
+                />
+              </SeekBarSlot>
             }
             sliderPreviewTitle={markerTitle}
           >
-            {startPending && (
-              <div className="media-buffering-indicator" data-visible="">
-                <media-icon
-                  family="compat"
-                  name="spinner"
-                  class="media-buffering-indicator-spinner-icon"
-                />
-              </div>
-            )}
-            {missingFile && (
-              <div className="videojs-10-missing-file">
-                <h5>
-                  <FormattedMessage id="errors.file_not_found" />
-                </h5>
-                <span>{file?.path}</span>
-              </div>
-            )}
+            <OverlaySlot scene={scene} player={player}>
+              {startPending && (
+                <div className="media-buffering-indicator" data-visible="">
+                  <media-icon
+                    family="compat"
+                    name="spinner"
+                    class="media-buffering-indicator-spinner-icon"
+                  />
+                </div>
+              )}
+              {missingFile && (
+                <div className="videojs-10-missing-file">
+                  <h5>
+                    <FormattedMessage id="errors.file_not_found" />
+                  </h5>
+                  <span>{file?.path}</span>
+                </div>
+              )}
+            </OverlaySlot>
           </Skin>
           {castEnabled && <google-cast />}
         </video-player>

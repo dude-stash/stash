@@ -1,4 +1,4 @@
-import { getPlayer } from "src/components/ScenePlayer/util";
+import { getPlayer, getVideoJs10Player } from "src/components/ScenePlayer/util";
 import type { VideoJsPlayer } from "video.js";
 import * as GQL from "src/core/generated-graphql";
 
@@ -41,6 +41,7 @@ export interface IInteractiveClient {
 
 export interface IInteractiveUtils {
   getPlayer: () => VideoJsPlayer | undefined;
+  getVideoJs10Player: () => HTMLElement | null;
   interactiveClientProvider: IInteractiveClientProvider | undefined;
 }
 const InteractiveUtils = {
@@ -48,6 +49,8 @@ const InteractiveUtils = {
   interactiveClientProvider: undefined,
   // returns the active player
   getPlayer,
+  // returns the experimental Video.js 10 player element when it is in use
+  getVideoJs10Player,
 };
 
 export default InteractiveUtils;
