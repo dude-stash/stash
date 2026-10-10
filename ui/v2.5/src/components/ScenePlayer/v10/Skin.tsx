@@ -18,6 +18,8 @@ interface ISkinProps {
   settingsStart?: React.ReactNode;
   settingsSpeed?: React.ReactNode;
   settingsEnd?: React.ReactNode;
+  sliderLayer?: React.ReactNode;
+  sliderPreviewTitle?: string;
 }
 
 export const Skin: React.FC<ISkinProps> = ({
@@ -30,6 +32,8 @@ export const Skin: React.FC<ISkinProps> = ({
   settingsStart,
   settingsSpeed,
   settingsEnd,
+  sliderLayer,
+  sliderPreviewTitle,
   children,
 }) => (
   <media-container
@@ -254,6 +258,7 @@ export const Skin: React.FC<ISkinProps> = ({
                       html={`<div class="media-time-slider-chapter"><media-slider-track class="media-time-slider-track"><media-slider-buffer class="media-time-slider-buffer"></media-slider-buffer><media-slider-fill class="media-time-slider-fill"></media-slider-fill></media-slider-track></div>`}
                     />
                   </media-time-slider-chapters>
+                  {sliderLayer}
                   <media-slider-thumb class="media-time-slider-thumb" />
                   <media-slider-preview class="media-time-slider-preview">
                     <media-slider-thumbnail class="media-slider-thumbnail">
@@ -271,6 +276,11 @@ export const Skin: React.FC<ISkinProps> = ({
                           type="pointer"
                         />
                         <media-time-slider-chapter-title class="media-time-slider-chapter-title" />
+                        {sliderPreviewTitle && (
+                          <span className="media-time-slider-chapter-title">
+                            {sliderPreviewTitle}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </media-slider-preview>

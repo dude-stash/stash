@@ -22,6 +22,7 @@ import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
 import { Skin } from "./v10/Skin";
+import { Markers } from "./v10/Markers";
 import { AutostartMenuItem, RadioSubmenu, SkipButton } from "./v10/controls";
 import { PlayerElement, seekBy } from "./v10/store";
 
@@ -32,6 +33,8 @@ interface IStream {
   url: string;
   label: string;
 }
+
+type MarkerFragment = GQL.SceneDataFragment["scene_markers"][number];
 
 const MEDIA_ERR_DECODE = 3;
 const MEDIA_ERR_SRC_NOT_SUPPORTED = 4;
@@ -75,6 +78,11 @@ async function isFileMissing(url: string) {
   } finally {
     controller.abort();
   }
+}
+
+function getMarkerTitle(marker: MarkerFragment) {
+  if (marker.title) return marker.title;
+  return [marker.primary_tag, ...marker.tags].map((t) => t.name).join(", ");
 }
 
 function getFallback(streams: IStream[], current: IStream) {
@@ -125,6 +133,7 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
   const [loadedKinds, setLoadedKinds] = useState<StreamKind[]>(["direct"]);
   const [time, setTime] = useState(0);
   const [rate, setRate] = useState(1);
+  const [markerTitle, setMarkerTitle] = useState<string>();
   const [fullscreen, setFullscreen] = useState(false);
   const [showScrubber, setShowScrubber] = useState(false);
 
@@ -145,6 +154,20 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     [scene]
   );
   const streams = useMemo(() => getStreams(scene), [scene]);
+
+  const markers = useMemo(
+    () =>
+      scene.scene_markers.map((marker) => ({
+        title: getMarkerTitle(marker),
+        seconds: marker.seconds,
+        end_seconds: marker.end_seconds ?? null,
+        primaryTag: marker.primary_tag,
+      })),
+    [scene.scene_markers]
+  );
+  // As in v7, phones show range markers as dots.
+  const showRangeMarkers =
+    !ScreenUtils.isMobile() && (configuration?.ui.showRangeMarkers ?? true);
 
   const captions = useMemo(() => {
     const captionPath = scene.paths.caption;
@@ -180,6 +203,7 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     setPendingPlay(!!autoplay || autostartVideo);
     setTime(0);
     setMissingFile(false);
+    setMarkerTitle(undefined);
     setStream(streams[0]);
     containerRef.current?.focus({ preventScroll: true });
   }, [scene, streams, autoplay, autostartVideo, setPendingPlay]);
@@ -505,6 +529,16 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
                 onToggle={onAutostartToggle}
               />
             }
+            sliderLayer={
+              <Markers
+                markers={markers}
+                duration={file?.duration ?? 0}
+                showRanges={showRangeMarkers}
+                onSeek={(seconds) => store?.seek(seconds)}
+                onHover={(marker) => setMarkerTitle(marker?.title)}
+              />
+            }
+            sliderPreviewTitle={markerTitle}
           >
             {startPending && (
               <div className="media-buffering-indicator" data-visible="">
