@@ -22,7 +22,7 @@ import { PatchFunction } from "src/patch";
 import { languageMap } from "src/utils/caption";
 import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
-import { VIDEO_PLAYER_ID } from "./util";
+import { setVideoJs10Player, VIDEO_PLAYER_ID } from "./util";
 import { useAbLoop } from "./v10/abloop";
 import {
   AbLoopButtons,
@@ -32,6 +32,12 @@ import {
 } from "./v10/controls";
 import { Markers } from "./v10/Markers";
 import { Skin } from "./v10/Skin";
+import {
+  ControlBarSlot,
+  OverlaySlot,
+  SeekBarSlot,
+  SettingsMenuSlot,
+} from "./v10/slots";
 
 type StreamKind = "direct" | "hls" | "dash";
 
@@ -176,6 +182,11 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     !ScreenUtils.isMobile() && (configuration?.ui.showRangeMarkers ?? true);
 
   const abLoop = useAbLoop(scene.id);
+
+  useEffect(() => {
+    setVideoJs10Player(store);
+    return () => setVideoJs10Player(null);
+  }, [store]);
 
   const captions = useMemo(() => {
     const captionPath = scene.paths.caption;
@@ -471,9 +482,11 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
           }
           controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
           controlsEnd={
-            configuration?.ui.showAbLoopControls && (
-              <AbLoopButtons abLoop={abLoop} />
-            )
+            <ControlBarSlot scene={scene} player={store}>
+              {configuration?.ui.showAbLoopControls && (
+                <AbLoopButtons abLoop={abLoop} />
+              )}
+            </ControlBarSlot>
           }
           settingsStart={
             <RadioSubmenu
@@ -497,31 +510,37 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             />
           }
           settingsEnd={
-            <AutostartMenuItem
-              enabled={autostartVideo}
-              onToggle={onAutostartToggle}
-            />
+            <SettingsMenuSlot scene={scene} player={store}>
+              <AutostartMenuItem
+                enabled={autostartVideo}
+                onToggle={onAutostartToggle}
+              />
+            </SettingsMenuSlot>
           }
           sliderLayer={
-            <Markers
-              markers={markers}
-              duration={file?.duration ?? 0}
-              showRanges={showRangeMarkers}
-              onSeek={(seconds) => store.seek(seconds)}
-              onHover={(marker) => setMarkerTitle(marker?.title)}
-            />
+            <SeekBarSlot scene={scene} player={store}>
+              <Markers
+                markers={markers}
+                duration={file?.duration ?? 0}
+                showRanges={showRangeMarkers}
+                onSeek={(seconds) => store.seek(seconds)}
+                onHover={(marker) => setMarkerTitle(marker?.title)}
+              />
+            </SeekBarSlot>
           }
           sliderPreviewTitle={markerTitle}
           starting={startPending}
         >
-          {missingFile && (
-            <div className="videojs-10-missing-file">
-              <h5>
-                <FormattedMessage id="errors.file_not_found" />
-              </h5>
-              <span>{file?.path}</span>
-            </div>
-          )}
+          <OverlaySlot scene={scene} player={store}>
+            {missingFile && (
+              <div className="videojs-10-missing-file">
+                <h5>
+                  <FormattedMessage id="errors.file_not_found" />
+                </h5>
+                <span>{file?.path}</span>
+              </div>
+            )}
+          </OverlaySlot>
         </Skin>
         <GoogleCast />
       </div>

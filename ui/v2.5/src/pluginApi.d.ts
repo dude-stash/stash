@@ -745,6 +745,11 @@ declare namespace PluginApi {
     "ScenePage.TabContent": React.FC<any>;
     "ScenePage.Tabs": React.FC<any>;
     ScenePlayer: React.FC<any>;
+    "ScenePlayer.ControlBar": React.FC<any>;
+    "ScenePlayer.ControlButton": React.FC<any>;
+    "ScenePlayer.Overlay": React.FC<any>;
+    "ScenePlayer.SeekBar": React.FC<any>;
+    "ScenePlayer.SettingsMenu": React.FC<any>;
     SceneSelect: React.FC<any>;
     "SceneCard.Details": React.FC<any>;
     "SceneCard.Image": React.FC<any>;

@@ -7,6 +7,7 @@ import {
 import { Menu, useMenuContext } from "@videojs/react";
 import { ChevronIcon, PlayIcon } from "@videojs/react/icons/compat";
 import { Icon } from "src/components/Shared/Icon";
+import { RegisterComponent } from "src/patch";
 import { formatLoopTime, IAbLoop, IAbLoopOptions } from "./abloop";
 import { Button } from "./skin/video/shared/button";
 import { RadioItem } from "./skin/video/shared/menu-item";
@@ -18,7 +19,7 @@ interface IControlButtonProps {
   onClick: () => void;
 }
 
-// A button styled like the skin's own controls, with the skin's tooltip.
+// A button styled like the skin's own controls, with the skin's tooltip. Plugins get it as ScenePlayer.ControlButton.
 const ControlButton: React.FC<IControlButtonProps> = ({
   label,
   icon,
@@ -30,6 +31,8 @@ const ControlButton: React.FC<IControlButtonProps> = ({
     </Button>
   </ButtonTooltip>
 );
+
+RegisterComponent("ScenePlayer.ControlButton", ControlButton);
 
 export const SkipButton: React.FC<{
   direction: "previous" | "next";

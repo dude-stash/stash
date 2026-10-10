@@ -1,14 +1,21 @@
+import type { VideoPlayerStore } from "@videojs/core/dom";
 import videojs, { VideoJsPlayer } from "video.js";
 
 export const VIDEO_PLAYER_ID = "VideoJsPlayer";
 
 export const getPlayer = () => videojs.getPlayer(VIDEO_PLAYER_ID);
 
-const getV10Video = () =>
-  document.querySelector<HTMLVideoElement>(".VideoPlayer.videojs-10 video");
+// The experimental Video.js 10 player's store, while that player is mounted.
+let videoJs10Player: VideoPlayerStore | null = null;
+
+export const setVideoJs10Player = (store: VideoPlayerStore | null) => {
+  videoJs10Player = store;
+};
+
+export const getVideoJs10Player = () => videoJs10Player;
 
 export const getPlayerPosition = () =>
-  getPlayer()?.currentTime() ?? getV10Video()?.currentTime;
+  getPlayer()?.currentTime() ?? videoJs10Player?.currentTime;
 
 export type AbLoopOptions = {
   start: number;

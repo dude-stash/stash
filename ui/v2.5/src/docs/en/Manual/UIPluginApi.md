@@ -84,8 +84,9 @@ Returns a `Promise<void>` that resolves when all of the components have been loa
 
 #### `PluginApi.utils.InteractiveUtils`
 
-This namespace provides access to `interactiveClientProvider` and `getPlayer`
+This namespace provides access to `interactiveClientProvider`, `getPlayer` and `getVideoJs10Player`
  - `getPlayer` returns the current `videojs` player object
+ - `getVideoJs10Player` returns the experimental Video.js 10 player's store when it is in use, otherwise `null`. See [Video.js 10 player](#videojs-10-player).
  - `interactiveClientProvider` takes `IInteractiveClientProvider` which allows a developer to hook into the lifecycle of funscripts.
 
 ```ts
@@ -336,6 +337,10 @@ Returns `void`.
 - `ScenePage.TabContent`
 - `ScenePage.Tabs`
 - `ScenePlayer`
+- `ScenePlayer.ControlBar`
+- `ScenePlayer.Overlay`
+- `ScenePlayer.SeekBar`
+- `ScenePlayer.SettingsMenu`
 - `SceneRecommendationRow`
 - `SceneScrapeDialog`
 - `SceneSelect`
@@ -373,6 +378,42 @@ Returns `void`.
 - `TagSelect`
 - `TagSelect.sort`
 - `TruncatedText`
+
+#### Video.js 10 player
+
+With the experimental Video.js 10 player turned on, patches to `ScenePlayer` apply to it as well, while `components.ScenePlayer` and `loadableComponents.ScenePlayer` remain the Video.js 7 player. Its controls are not Video.js 7 components, so plugins add to it through these patchable components:
+
+| Component | Where |
+|-----------|-------|
+| `ScenePlayer.ControlBar` | The right of the control bar, before the captions and settings buttons. |
+| `ScenePlayer.SettingsMenu` | The end of the settings menu. |
+| `ScenePlayer.SeekBar` | Inside the seek bar, for layers such as the marker dots. |
+| `ScenePlayer.Overlay` | Over the video. |
+
+Each receives `scene` and `player` props. `player` is the [Video.js 10 player store](https://videojs.org/docs/framework/react/reference/api/player-store), with state such as `currentTime`, `duration` and `paused`, actions such as `play`, `pause` and `seek`, and `subscribe` to follow changes. `PluginApi.components["ScenePlayer.ControlButton"]` is a button that looks like the player's own, taking `label`, `icon` (a Font Awesome icon) and `onClick`.
+
+```js
+PluginApi.patch.before("ScenePlayer.ControlBar", function (props) {
+  const { React, libraries } = PluginApi;
+  const ControlButton = PluginApi.components["ScenePlayer.ControlButton"];
+
+  return [
+    {
+      ...props,
+      children: React.createElement(
+        React.Fragment,
+        null,
+        props.children,
+        React.createElement(ControlButton, {
+          label: "Back to start",
+          icon: libraries.FontAwesomeSolid.faBackward,
+          onClick: () => props.player.seek(0),
+        })
+      ),
+    },
+  ];
+});
+```
 
 ### `PluginApi.Event`
 
