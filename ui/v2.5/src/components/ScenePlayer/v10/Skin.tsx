@@ -34,6 +34,7 @@ interface ISeekBarSlots {
 interface IControlsSlots extends ISettingsMenuSlots, ISeekBarSlots {
   controlsBeforePlay?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
+  controlsEnd?: React.ReactNode;
 }
 
 // The copied skin's seek bar, with places for Stash's layer over the bar and a title in its preview.
@@ -88,10 +89,11 @@ const CenterSeekButton: React.FC<{ seconds: number }> = ({ seconds }) => (
   />
 );
 
-// The copied skin's video controls, with places for Stash's controls either side of the play button.
+// The copied skin's video controls, with places for Stash's controls either side of the play button and before the captions button.
 const VideoControls: React.FC<IControlsSlots> = ({
   controlsBeforePlay,
   controlsAfterPlay,
+  controlsEnd,
   sliderLayer,
   sliderPreviewTitle,
   ...settingsSlots
@@ -142,6 +144,7 @@ const VideoControls: React.FC<IControlsSlots> = ({
                 </Time.Group>
               </Controls.Group>
               <Controls.Group className="video-controls-group">
+                {controlsEnd}
                 <CaptionsToggle />
                 <SettingsMenu {...settingsSlots} />
               </Controls.Group>

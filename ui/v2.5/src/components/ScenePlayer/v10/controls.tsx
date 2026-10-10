@@ -7,6 +7,7 @@ import {
 import { Menu, useMenuContext } from "@videojs/react";
 import { ChevronIcon, PlayIcon } from "@videojs/react/icons/compat";
 import { Icon } from "src/components/Shared/Icon";
+import { formatLoopTime, IAbLoop, IAbLoopOptions } from "./abloop";
 import { Button } from "./skin/video/shared/button";
 import { RadioItem } from "./skin/video/shared/menu-item";
 import { ButtonTooltip } from "./skin/video/shared/tooltip";
@@ -42,6 +43,70 @@ export const SkipButton: React.FC<{
     onClick={onClick}
   />
 );
+
+function getLoopLabel(options: IAbLoopOptions) {
+  if (!options.enabled) return "Loop off";
+  if (options.pauseBeforeLooping && options.pauseAfterLooping) {
+    return "PAUSE LOOP PAUSE";
+  }
+  if (options.pauseAfterLooping) return "LOOP& PAUSE";
+  if (options.pauseBeforeLooping) return "PAUSE &LOOP";
+  return "LOOP ON";
+}
+
+// videojs-abloop's buttons as v7 shows them: click sets a point and right-click goes to it, with Shift and Ctrl nudging it by 0.5s and 0.05s.
+export const AbLoopButtons: React.FC<{ abLoop: IAbLoop }> = ({ abLoop }) => {
+  const { options, setPoint, adjustPoint, goToPoint, toggle, cyclePauseModes } =
+    abLoop;
+
+  function pointProps(point: "start" | "end") {
+    return {
+      onClick: (event: React.MouseEvent) => {
+        if (event.shiftKey) adjustPoint(point, -0.5);
+        else if (event.ctrlKey) adjustPoint(point, -0.05);
+        else setPoint(point);
+      },
+      onMouseDown: (event: React.MouseEvent) => {
+        if (event.button !== 2) return;
+        if (event.shiftKey) adjustPoint(point, 0.5);
+        else if (event.ctrlKey) adjustPoint(point, 0.05);
+        else goToPoint(point);
+      },
+      onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
+    };
+  }
+
+  return (
+    <>
+      <Button
+        type="button"
+        className="stash-text-button"
+        aria-label="Loop start"
+        {...pointProps("start")}
+      >
+        {formatLoopTime(options.start)}
+      </Button>
+      <Button
+        type="button"
+        className="stash-text-button"
+        aria-label="Loop end"
+        {...pointProps("end")}
+      >
+        {formatLoopTime(options.end === false ? 0 : options.end)}
+      </Button>
+      <Button
+        type="button"
+        className="stash-text-button"
+        aria-label="Loop"
+        onClick={toggle}
+        onMouseDown={(event) => event.button === 2 && cyclePauseModes()}
+        onContextMenu={(event) => event.preventDefault()}
+      >
+        {getLoopLabel(options)}
+      </Button>
+    </>
+  );
+};
 
 // The settings button hides unless one of its pages reports being available, which only Video.js's own pages do by themselves.
 function useAvailableMenuPage(available: boolean) {
