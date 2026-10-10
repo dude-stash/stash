@@ -734,6 +734,13 @@ $sceneTabWidth: 450px;
     width: calc(var(--media-spacing) * 4.5);
   }
 
+  .stash-text-button {
+    font-variant-numeric: tabular-nums;
+    padding-inline: calc(var(--media-spacing) * 2);
+    white-space: nowrap;
+    width: auto;
+  }
+
   // Until an auto-started scene plays, its play buttons would look ready while doing nothing.
   .media-skin[data-stash-starting] .media-play-button {
     opacity: 0.4;

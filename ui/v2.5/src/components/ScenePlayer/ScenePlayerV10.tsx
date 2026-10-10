@@ -23,7 +23,13 @@ import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
 import { Skin } from "./v10/Skin";
 import { Markers } from "./v10/Markers";
-import { AutostartMenuItem, RadioSubmenu, SkipButton } from "./v10/controls";
+import { useAbLoop } from "./v10/abloop";
+import {
+  AbLoopButtons,
+  AutostartMenuItem,
+  RadioSubmenu,
+  SkipButton,
+} from "./v10/controls";
 import { PlayerElement, seekBy } from "./v10/store";
 
 type StreamKind = "direct" | "hls" | "dash";
@@ -168,6 +174,8 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
   // As in v7, phones show range markers as dots.
   const showRangeMarkers =
     !ScreenUtils.isMobile() && (configuration?.ui.showRangeMarkers ?? true);
+
+  const abLoop = useAbLoop(store, player, scene.id);
 
   const captions = useMemo(() => {
     const captionPath = scene.paths.caption;
@@ -396,6 +404,18 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
       case "[":
         seekBy(store, -store.duration * 0.1);
         break;
+      // As in v7: set the start, then the end and loop, then clear.
+      case "l": {
+        const { options, setOptions } = abLoop;
+        if (!options.start) {
+          setOptions({ start: store.currentTime });
+        } else if (!options.end) {
+          setOptions({ end: store.currentTime, enabled: true });
+        } else {
+          setOptions({ start: 0, end: false, enabled: false });
+        }
+        break;
+      }
     }
   }
 
@@ -492,6 +512,11 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
               <SkipButton direction="previous" onClick={onPrevious} />
             }
             controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
+            controlsEnd={
+              configuration?.ui.showAbLoopControls && (
+                <AbLoopButtons abLoop={abLoop} />
+              )
+            }
             settingsStart={
               <RadioSubmenu
                 id="stash-source-content"

@@ -15,6 +15,7 @@ interface ISkinProps {
   media: React.ReactNode;
   controlsBeforePlay?: React.ReactNode;
   controlsAfterPlay?: React.ReactNode;
+  controlsEnd?: React.ReactNode;
   settingsStart?: React.ReactNode;
   settingsSpeed?: React.ReactNode;
   settingsEnd?: React.ReactNode;
@@ -29,6 +30,7 @@ export const Skin: React.FC<ISkinProps> = ({
   media,
   controlsBeforePlay,
   controlsAfterPlay,
+  controlsEnd,
   settingsStart,
   settingsSpeed,
   settingsEnd,
@@ -382,6 +384,7 @@ export const Skin: React.FC<ISkinProps> = ({
                   </media-time-group>
                 </media-controls-group>
                 <media-controls-group class="video-controls-group">
+                  {controlsEnd}
                   <media-captions-button
                     class="media-button media-captions-button"
                     id="vjs-SSYvGroJ-0-10-trigger"

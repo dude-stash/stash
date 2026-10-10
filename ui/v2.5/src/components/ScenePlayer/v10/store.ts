@@ -1,9 +1,13 @@
+import type { IAbLoopApi } from "./abloop";
+
 // The subset of the Video.js 10 player store that Stash uses.
 export interface IPlayerStore {
   currentTime: number;
   duration: number;
   paused: boolean;
+  ended: boolean;
   started: boolean;
+  seeking: boolean;
   isFullscreen: boolean;
   playbackRate: number;
   remotePlaybackState: "disconnected" | "connecting" | "connected";
@@ -17,6 +21,7 @@ export interface IPlayerStore {
 
 export type PlayerElement = HTMLElement & {
   store?: IPlayerStore;
+  stashAbLoop?: IAbLoopApi;
 };
 
 export function seekBy(store: IPlayerStore, seconds: number) {
