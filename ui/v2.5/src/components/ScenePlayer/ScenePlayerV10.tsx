@@ -1,4 +1,5 @@
 import React, {
+  KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -18,7 +19,8 @@ import ScreenUtils from "src/utils/screen";
 import { ScenePlayerScrubber } from "./ScenePlayerScrubber";
 import { VIDEO_PLAYER_ID } from "./util";
 import { Skin } from "./v10/Skin";
-import { PlayerElement } from "./v10/store";
+import { SkipButton } from "./v10/controls";
+import { PlayerElement, seekBy } from "./v10/store";
 
 type StreamKind = "direct" | "hls" | "dash";
 
@@ -94,6 +96,8 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
   sendSetTimestamp,
+  onNext,
+  onPrevious,
 }) => {
   const { configuration } = useConfigurationContext();
   const castEnabled = configuration?.ui.enableChromecast ?? false;
@@ -285,6 +289,45 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
     }
   }
 
+  // Space always plays or pauses, even with a control focused, as in v7.
+  function onKeyDownCapture(event: KeyboardEvent) {
+    if (event.key !== " " || !store) return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    if (store.paused) store.play().catch(() => {});
+    else store.pause();
+  }
+
+  // The rest of v7's shortcuts are declared on the skin's media-hotkey elements.
+  function onKeyDown(event: KeyboardEvent) {
+    if (!store) return;
+
+    if (event.key === "MediaTrackNext") onNext();
+    if (event.key === "MediaTrackPrevious") onPrevious();
+
+    if (event.shiftKey && event.key.toLowerCase() === "l") {
+      media?.toggleAttribute("loop", !media.loop);
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+
+    switch (event.key) {
+      case "]":
+        if (store.currentTime + store.duration * 0.1 < store.duration) {
+          seekBy(store, store.duration * 0.1);
+        }
+        break;
+      case "[":
+        seekBy(store, -store.duration * 0.1);
+        break;
+    }
+  }
+
   const poster = scene.paths.screenshot ?? undefined;
   const tracks = (
     <>
@@ -364,6 +407,8 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
         portrait: isPortrait,
         "no-file": !file,
       })}
+      onKeyDownCapture={onKeyDownCapture}
+      onKeyDown={onKeyDown}
     >
       <div id={VIDEO_PLAYER_ID} className="video-wrapper">
         <video-player ref={setPlayer} content-title={objectTitle(scene)}>
@@ -371,6 +416,10 @@ const ScenePlayerV10Component: React.FC<IScenePlayerProps> = ({
             containerRef={containerRef}
             remotePlayback={castEnabled}
             media={renderMedia()}
+            controlsBeforePlay={
+              <SkipButton direction="previous" onClick={onPrevious} />
+            }
+            controlsAfterPlay={<SkipButton direction="next" onClick={onNext} />}
           >
             {missingFile && (
               <div className="videojs-10-missing-file">

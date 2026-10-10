@@ -7,17 +7,21 @@ const Template: React.FC<{ html: string }> = ({ html }) => (
   <template dangerouslySetInnerHTML={{ __html: html }} />
 );
 
-// The Compat skin's markup from ./skin/video/skin.html, as JSX.
+// The Compat skin's markup from ./skin/video/skin.html, as JSX, with places for Stash's controls.
 interface ISkinProps {
   containerRef?: React.Ref<HTMLElement>;
   remotePlayback?: boolean;
   media: React.ReactNode;
+  controlsBeforePlay?: React.ReactNode;
+  controlsAfterPlay?: React.ReactNode;
 }
 
 export const Skin: React.FC<ISkinProps> = ({
   containerRef,
   remotePlayback,
   media,
+  controlsBeforePlay,
+  controlsAfterPlay,
   children,
 }) => (
   <media-container
@@ -265,6 +269,7 @@ export const Skin: React.FC<ISkinProps> = ({
               </div>
               <media-controls-group class="video-controls-row">
                 <media-controls-group class="video-controls-group video-controls-start">
+                  {controlsBeforePlay}
                   <media-play-button
                     class="media-button media-play-button"
                     id="vjs-SSYvGroJ-0-8-trigger"
@@ -293,6 +298,7 @@ export const Skin: React.FC<ISkinProps> = ({
                     <media-tooltip-label />
                     <media-tooltip-shortcut class="media-tooltip-shortcut" />
                   </media-tooltip>
+                  {controlsAfterPlay}
                   <media-mute-button
                     commandfor="vjs-VqoBpvCY-0-popup"
                     class="media-button media-mute-button"
@@ -586,30 +592,48 @@ export const Skin: React.FC<ISkinProps> = ({
         </media-controls-content>
       </media-buffering-indicator>
     </media-controls>
+    {/* The v7 player's shortcuts; the rest are handled by the player. */}
     <media-hotkey keys="Space" action="togglePaused" />
+    <media-hotkey keys="Enter" action="togglePaused" />
     <media-hotkey keys="m" action="toggleMuted" />
-    <media-hotkey keys="ArrowRight" action="seekStep" />
-    <media-hotkey keys="ArrowLeft" action="seekStep" />
-    <media-hotkey keys="l" action="seekStep" />
-    <media-hotkey keys="j" action="seekStep" />
-    <media-hotkey keys="ArrowUp" action="volumeStep" />
-    <media-hotkey keys="ArrowDown" action="volumeStep" />
+    <media-hotkey keys="ArrowRight" action="seekStep" value="10" />
+    <media-hotkey keys="ArrowLeft" action="seekStep" value="-10" />
+    <media-hotkey keys="Shift+ArrowRight" action="seekStep" value="5" />
+    <media-hotkey keys="Shift+ArrowLeft" action="seekStep" value="-5" />
+    <media-hotkey keys="Ctrl+ArrowRight" action="seekStep" value="60" />
+    <media-hotkey keys="Ctrl+ArrowLeft" action="seekStep" value="-60" />
+    <media-hotkey keys="Alt+ArrowRight" action="seekStep" value="60" />
+    <media-hotkey keys="Alt+ArrowLeft" action="seekStep" value="-60" />
+    <media-hotkey keys="ArrowUp" action="volumeStep" value="0.1" />
+    <media-hotkey keys="ArrowDown" action="volumeStep" value="-0.1" />
     <media-hotkey keys="0-9" action="seekToPercent" />
     <media-hotkey keys="Home" action="seekToPercent" value="0" />
     <media-hotkey keys="End" action="seekToPercent" value="100" />
     <media-hotkey keys=">" action="speedUp" />
     <media-hotkey keys="<" action="speedDown" />
     <media-hotkey keys="f" action="toggleFullscreen" />
-    <media-gesture
-      type="tap"
-      action="togglePaused"
-      pointer="mouse"
-      region="center"
-    />
+    {/* As in v7, a click anywhere plays or pauses and a double-click toggles fullscreen; touch keeps the skin's gestures. */}
+    <media-gesture type="tap" action="togglePaused" pointer="mouse" />
+    <media-gesture type="doubletap" action="toggleFullscreen" pointer="mouse" />
     <media-gesture type="tap" action="toggleControls" pointer="touch" />
-    <media-gesture type="doubletap" action="seekStep" region="left" />
-    <media-gesture type="doubletap" action="toggleFullscreen" region="center" />
-    <media-gesture type="doubletap" action="seekStep" region="right" />
+    <media-gesture
+      type="doubletap"
+      action="seekStep"
+      region="left"
+      pointer="touch"
+    />
+    <media-gesture
+      type="doubletap"
+      action="toggleFullscreen"
+      region="center"
+      pointer="touch"
+    />
+    <media-gesture
+      type="doubletap"
+      action="seekStep"
+      region="right"
+      pointer="touch"
+    />
     <media-status-announcer class="media-status-announcer" />
     <div aria-hidden="true" className="media-indicator-group">
       <media-volume-indicator class="media-indicator media-volume-indicator">
