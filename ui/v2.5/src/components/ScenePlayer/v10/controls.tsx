@@ -2,6 +2,7 @@ import React, { useLayoutEffect } from "react";
 import {
   faBackwardStep,
   faForwardStep,
+  faRepeat,
   IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { Menu, useMenuContext } from "@videojs/react";
@@ -50,17 +51,19 @@ export const SkipButton: React.FC<{
 function getLoopLabel(options: IAbLoopOptions) {
   if (!options.enabled) return "Loop off";
   if (options.pauseBeforeLooping && options.pauseAfterLooping) {
-    return "PAUSE LOOP PAUSE";
+    return "Loop on, pausing before and after each loop";
   }
-  if (options.pauseAfterLooping) return "LOOP& PAUSE";
-  if (options.pauseBeforeLooping) return "PAUSE &LOOP";
-  return "LOOP ON";
+  if (options.pauseAfterLooping) return "Loop on, pausing after each loop";
+  if (options.pauseBeforeLooping) return "Loop on, pausing before each loop";
+  return "Loop on";
 }
 
-// videojs-abloop's buttons as v7 shows them: click sets a point and right-click goes to it, with Shift and Ctrl nudging it by 0.5s and 0.05s.
+// videojs-abloop's controls as A, B and loop buttons that light up once set: click sets a point and right-click goes to it, with Shift and Ctrl nudging it by 0.5s and 0.05s.
 export const AbLoopButtons: React.FC<{ abLoop: IAbLoop }> = ({ abLoop }) => {
   const { options, setPoint, adjustPoint, goToPoint, toggle, cyclePauseModes } =
     abLoop;
+  const startSet = options.start > 0;
+  const endSet = options.end !== false;
 
   function pointProps(point: "start" | "end") {
     return {
@@ -79,35 +82,82 @@ export const AbLoopButtons: React.FC<{ abLoop: IAbLoop }> = ({ abLoop }) => {
     };
   }
 
+  // The tooltips open at once and stay open through clicks, so the times and modes can be watched as they change.
   return (
     <>
-      <Button
-        type="button"
-        className="stash-text-button"
-        aria-label="Loop start"
-        {...pointProps("start")}
+      <ButtonTooltip
+        delay={0}
+        sticky
+        label={
+          startSet
+            ? `Loop start ${formatLoopTime(options.start)}`
+            : "Set loop start"
+        }
       >
-        {formatLoopTime(options.start)}
-      </Button>
-      <Button
-        type="button"
-        className="stash-text-button"
-        aria-label="Loop end"
-        {...pointProps("end")}
+        <Button
+          type="button"
+          className="stash-loop-button stash-loop-point"
+          data-active={startSet || undefined}
+          aria-label="Loop start"
+          {...pointProps("start")}
+        >
+          A
+        </Button>
+      </ButtonTooltip>
+      <ButtonTooltip
+        delay={0}
+        sticky
+        label={
+          options.end !== false
+            ? `Loop end ${formatLoopTime(options.end)}`
+            : "Set loop end"
+        }
       >
-        {formatLoopTime(options.end === false ? 0 : options.end)}
-      </Button>
-      <Button
-        type="button"
-        className="stash-text-button"
-        aria-label="Loop"
-        onClick={toggle}
-        onMouseDown={(event) => event.button === 2 && cyclePauseModes()}
-        onContextMenu={(event) => event.preventDefault()}
-      >
-        {getLoopLabel(options)}
-      </Button>
+        <Button
+          type="button"
+          className="stash-loop-button stash-loop-point"
+          data-active={endSet || undefined}
+          aria-label="Loop end"
+          {...pointProps("end")}
+        >
+          B
+        </Button>
+      </ButtonTooltip>
+      <ButtonTooltip delay={0} sticky label={getLoopLabel(options)}>
+        <Button
+          type="button"
+          className="stash-loop-button"
+          data-active={options.enabled || undefined}
+          aria-label="Loop"
+          aria-pressed={options.enabled}
+          onClick={toggle}
+          onMouseDown={(event) => event.button === 2 && cyclePauseModes()}
+          onContextMenu={(event) => event.preventDefault()}
+        >
+          <Icon icon={faRepeat} className="media-button-icon" />
+        </Button>
+      </ButtonTooltip>
     </>
+  );
+};
+
+// The A/B loop's range as a band on the seek bar, faint while the loop is off.
+export const AbLoopRange: React.FC<{
+  options: IAbLoopOptions;
+  duration: number;
+}> = ({ options, duration }) => {
+  const { start, end } = options;
+  if (!duration || end === false || start >= end) return null;
+
+  return (
+    <div
+      className="stash-loop-range"
+      data-active={options.enabled || undefined}
+      style={{
+        left: `${(start / duration) * 100}%`,
+        width: `${((Math.min(end, duration) - start) / duration) * 100}%`,
+      }}
+    />
   );
 };
 

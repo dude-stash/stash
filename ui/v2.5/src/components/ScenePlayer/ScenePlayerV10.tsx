@@ -28,6 +28,7 @@ import { useTrackActivity } from "./v10/activity";
 import { usePersistVolume } from "./v10/volume";
 import {
   AbLoopButtons,
+  AbLoopRange,
   AutostartMenuItem,
   RadioSubmenu,
   SkipButton,
@@ -571,6 +572,10 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
           }
           sliderLayer={
             <SeekBarSlot scene={scene} player={store}>
+              <AbLoopRange
+                options={abLoop.options}
+                duration={file?.duration ?? 0}
+              />
               <Markers
                 markers={markers}
                 duration={file?.duration ?? 0}

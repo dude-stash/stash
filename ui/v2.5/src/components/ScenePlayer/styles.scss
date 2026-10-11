@@ -734,11 +734,29 @@ $sceneTabWidth: 450px;
     width: calc(var(--media-spacing) * 4.5);
   }
 
-  .stash-text-button {
-    font-variant-numeric: tabular-nums;
-    padding-inline: calc(var(--media-spacing) * 2);
-    white-space: nowrap;
-    width: auto;
+  .stash-loop-point {
+    font-size: calc(var(--media-spacing) * 3.5);
+    font-weight: 700;
+  }
+
+  // The A/B loop's points and toggle light up once set, in the colour of the auto-start switch.
+  .stash-loop-button[data-active] {
+    color: var(--media-accent-color, #48aff0);
+  }
+
+  .stash-loop-range {
+    background-color: var(--media-accent-color, #48aff0);
+    border-radius: 9999px;
+    height: var(--media-spacing);
+    opacity: 0.3;
+    pointer-events: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+
+    &[data-active] {
+      opacity: 0.7;
+    }
   }
 
   // Until an auto-started scene plays, its play buttons would look ready while doing nothing.
