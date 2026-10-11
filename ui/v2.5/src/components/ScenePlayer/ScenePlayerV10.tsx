@@ -130,8 +130,10 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   scene,
   hideScrubberOverride,
   autoplay,
+  permitLoop = true,
   initialTimestamp,
   sendSetTimestamp,
+  onComplete,
   onNext,
   onPrevious,
 }) => {
@@ -139,6 +141,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
   const autostartVideo = configuration?.interface.autostartVideo ?? false;
   const alwaysStartFromBeginning =
     configuration?.ui.alwaysStartFromBeginning ?? false;
+  const maxLoopDuration = configuration?.interface.maximumLoopDuration ?? 0;
   const [updateInterfaceConfig] = useConfigureInterface();
 
   const store = usePlayer();
@@ -171,6 +174,14 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
     [scene]
   );
   const streams = useMemo(() => getStreams(scene), [scene]);
+
+  // As in v7, scenes shorter than the maximum loop duration loop, and Shift+L can still change it.
+  const looping =
+    !!file?.duration &&
+    permitLoop &&
+    maxLoopDuration !== 0 &&
+    file.duration < maxLoopDuration;
+  useEffect(() => setLoop(looping), [looping]);
 
   const markers = useMemo(
     () =>
@@ -464,6 +475,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
             onVolumeChange={onVolumeChange}
+            onEnded={onComplete}
           >
             {tracks}
           </HlsJsVideo>
@@ -478,6 +490,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
             onVolumeChange={onVolumeChange}
+            onEnded={onComplete}
           >
             {tracks}
           </DashVideo>
@@ -493,6 +506,7 @@ const ScenePlayerContent: React.FC<IScenePlayerProps> = ({
             loop={loop}
             onLoadedMetadata={onLoadedMetadata}
             onVolumeChange={onVolumeChange}
+            onEnded={onComplete}
           >
             {tracks}
           </Video>
