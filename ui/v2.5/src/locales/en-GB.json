@@ -733,7 +733,7 @@
       },
       "editing": {
         "auto_save_confirmed_fields": {
-          "description": "Immediately save the edit form when a tag, performer, studio, gallery, group, or stash-box ID is selected, without needing to press Save.",
+          "description": "Save the edit form 10 seconds after a tag, performer, studio, gallery, group, or stash-box ID is changed, or as soon as you leave that field, without needing to press Save.",
           "heading": "Auto-save on selection"
         },
         "disable_dropdown_create": {
