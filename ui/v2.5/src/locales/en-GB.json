@@ -8,6 +8,7 @@
     "add_o": "Add O",
     "add_play": "Add play",
     "add_scenes": "Add scenes",
+    "add_scenes_hint": "Showing scenes without {name}. Select scenes to add them.",
     "add_scenes_to_performer": "Add {count, plural, one {# scene} other {# scenes}} to {name}",
     "add_stash_id": "Add Stash ID",
     "add_to_entity": "Add to {entityType}",

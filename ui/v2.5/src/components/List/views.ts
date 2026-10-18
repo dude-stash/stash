@@ -16,7 +16,6 @@ export enum View {
   TagGroups = "tag_groups",
 
   PerformerScenes = "performer_scenes",
-  PerformerAddScenes = "performer_add_scenes",
   PerformerGalleries = "performer_galleries",
   PerformerImages = "performer_images",
   PerformerGroups = "performer_groups",

@@ -15,7 +15,7 @@ import { IListSelect, useFilterOperations } from "./util";
 import { SavedFilterDropdown } from "./SavedFilterList";
 import { FilterButton } from "./Filters/FilterButton";
 import { Icon } from "../Shared/Icon";
-import { faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faTimes } from "@fortawesome/free-solid-svg-icons";
 import { faSquareCheck } from "@fortawesome/free-regular-svg-icons";
 import { useIntl } from "react-intl";
 import cx from "classnames";
@@ -86,6 +86,11 @@ export interface IFilteredListToolbar {
   zoomable?: boolean;
   filterable?: boolean;
   sortable?: boolean;
+  addToggle?: {
+    active: boolean;
+    title: string;
+    onToggle: () => void;
+  };
 }
 
 export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
@@ -101,6 +106,7 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
   zoomable = false,
   filterable = true,
   sortable = true,
+  addToggle,
 }) => {
   const { configuration } = useConfigurationContext();
   const { pinnedSortBy = {} } = configuration.ui;
@@ -239,6 +245,18 @@ export const FilteredListToolbar: React.FC<IFilteredListToolbar> = ({
             setPageSize={(size) => setFilter(filter.setPageSize(size))}
           />
         </>
+      )}
+
+      {addToggle && (
+        <Button
+          variant={addToggle.active ? "primary" : "secondary"}
+          className="add-toggle-button"
+          title={addToggle.title}
+          active={addToggle.active}
+          onClick={addToggle.onToggle}
+        >
+          <Icon icon={faPlus} />
+        </Button>
       )}
 
       {renderOperations}

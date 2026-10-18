@@ -358,7 +358,11 @@ interface IFilteredScenes {
   view?: View;
   alterQuery?: boolean;
   fromGroupId?: string;
-  selectionAction?: {
+  addMode?: {
+    active: boolean;
+    onToggle: () => void;
+    title: string;
+    hint: string;
     label: (count: number) => string;
     onApply: (ids: string[]) => Promise<void>;
   };
@@ -373,14 +377,8 @@ export const FilteredSceneList = PatchComponent(
 
     const searchFocus = useFocus();
 
-    const {
-      filterHook,
-      defaultSort,
-      view,
-      alterQuery,
-      fromGroupId,
-      selectionAction,
-    } = props;
+    const { filterHook, defaultSort, view, alterQuery, fromGroupId, addMode } =
+      props;
     const [applying, setApplying] = useState(false);
 
     // States
@@ -688,6 +686,17 @@ export const FilteredSceneList = PatchComponent(
                   operationComponent={operations}
                   view={view}
                   zoomable
+                  addToggle={
+                    addMode && {
+                      active: addMode.active,
+                      title: addMode.title,
+                      onToggle: () => {
+                        onSelectNone();
+                        setFilter(filter.changePage(1));
+                        addMode.onToggle();
+                      },
+                    }
+                  }
                 />
 
                 <FilterTags
@@ -700,24 +709,30 @@ export const FilteredSceneList = PatchComponent(
                   onRemoveAll={clearAllCriteria}
                 />
 
-                {selectionAction && hasSelection && (
+                {addMode?.active && (
                   <div className="selection-action-bar">
                     <span>
-                      <FormattedMessage
-                        id="selected_count"
-                        values={{ count: selectedIds.size }}
-                      />
+                      {hasSelection ? (
+                        <FormattedMessage
+                          id="selected_count"
+                          values={{ count: selectedIds.size }}
+                        />
+                      ) : (
+                        addMode.hint
+                      )}
                     </span>
-                    <Button variant="link" onClick={() => onSelectNone()}>
-                      <FormattedMessage id="actions.select_none" />
-                    </Button>
+                    {hasSelection && (
+                      <Button variant="link" onClick={() => onSelectNone()}>
+                        <FormattedMessage id="actions.select_none" />
+                      </Button>
+                    )}
                     <Button
                       variant="primary"
-                      disabled={applying}
+                      disabled={!hasSelection || applying}
                       onClick={async () => {
                         setApplying(true);
                         try {
-                          await selectionAction.onApply(
+                          await addMode.onApply(
                             Array.from(selectedIds.values())
                           );
                           onSelectNone();
@@ -726,7 +741,7 @@ export const FilteredSceneList = PatchComponent(
                         }
                       }}
                     >
-                      {selectionAction.label(selectedIds.size)}
+                      {addMode.label(selectedIds.size)}
                     </Button>
                   </div>
                 )}
