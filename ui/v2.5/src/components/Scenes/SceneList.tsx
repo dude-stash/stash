@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import cloneDeep from "lodash-es/cloneDeep";
 import { FormattedMessage, useIntl } from "react-intl";
 import { useHistory, useLocation } from "react-router-dom";
@@ -358,6 +358,10 @@ interface IFilteredScenes {
   view?: View;
   alterQuery?: boolean;
   fromGroupId?: string;
+  selectionAction?: {
+    label: (count: number) => string;
+    onApply: (ids: string[]) => Promise<void>;
+  };
 }
 
 export const FilteredSceneList = PatchComponent(
@@ -369,7 +373,15 @@ export const FilteredSceneList = PatchComponent(
 
     const searchFocus = useFocus();
 
-    const { filterHook, defaultSort, view, alterQuery, fromGroupId } = props;
+    const {
+      filterHook,
+      defaultSort,
+      view,
+      alterQuery,
+      fromGroupId,
+      selectionAction,
+    } = props;
+    const [applying, setApplying] = useState(false);
 
     // States
     const {
@@ -687,6 +699,37 @@ export const FilteredSceneList = PatchComponent(
                   onRemoveCriterion={removeCriterion}
                   onRemoveAll={clearAllCriteria}
                 />
+
+                {selectionAction && hasSelection && (
+                  <div className="selection-action-bar">
+                    <span>
+                      <FormattedMessage
+                        id="selected_count"
+                        values={{ count: selectedIds.size }}
+                      />
+                    </span>
+                    <Button variant="link" onClick={() => onSelectNone()}>
+                      <FormattedMessage id="actions.select_none" />
+                    </Button>
+                    <Button
+                      variant="primary"
+                      disabled={applying}
+                      onClick={async () => {
+                        setApplying(true);
+                        try {
+                          await selectionAction.onApply(
+                            Array.from(selectedIds.values())
+                          );
+                          onSelectNone();
+                        } finally {
+                          setApplying(false);
+                        }
+                      }}
+                    >
+                      {selectionAction.label(selectedIds.size)}
+                    </Button>
+                  </div>
+                )}
 
                 <div className="pagination-index-container">
                   <Pagination

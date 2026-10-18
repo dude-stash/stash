@@ -23,6 +23,7 @@ import {
   PerformerDetailsPanel,
 } from "./PerformerDetailsPanel";
 import { PerformerScenesPanel } from "./PerformerScenesPanel";
+import { PerformerAddScenesPanel } from "./PerformerAddScenesPanel";
 import { PerformerGalleriesPanel } from "./PerformerGalleriesPanel";
 import { PerformerGroupsPanel } from "./PerformerGroupsPanel";
 import { PerformerImagesPanel } from "./PerformerImagesPanel";
@@ -64,6 +65,7 @@ interface IPerformerParams {
 const validTabs = [
   "default",
   "scenes",
+  "addscenes",
   "galleries",
   "images",
   "groups",
@@ -134,6 +136,16 @@ const PerformerTabs: React.FC<{
       >
         <PerformerScenesPanel
           active={activeTabKey === "scenes"}
+          performer={performer}
+        />
+      </Tab>
+
+      <Tab
+        eventKey="addscenes"
+        title={<FormattedMessage id="actions.add_scenes" />}
+      >
+        <PerformerAddScenesPanel
+          active={activeTabKey === "addscenes"}
           performer={performer}
         />
       </Tab>

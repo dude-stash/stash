@@ -1267,3 +1267,20 @@ ul.selectable-list {
     }
   }
 }
+
+.selection-action-bar {
+  align-items: center;
+  background-color: $card-bg;
+  border-radius: 0.25rem;
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  .btn-primary {
+    margin-left: auto;
+  }
+}
