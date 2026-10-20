@@ -22,3 +22,9 @@ subscription LoggingSubscribe {
 subscription ScanCompleteSubscribe {
   scanCompleteSubscribe
 }
+
+subscription ChromecastSubscribe {
+  chromecastSubscribe {
+    ...ChromecastStatusData
+  }
+}

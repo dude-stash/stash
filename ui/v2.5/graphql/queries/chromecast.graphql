@@ -1,0 +1,13 @@
+query ChromecastDevices {
+  chromecastDevices {
+    name
+    model
+    address
+  }
+}
+
+query ChromecastSessions {
+  chromecastSessions {
+    ...ChromecastStatusData
+  }
+}

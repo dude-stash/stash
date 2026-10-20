@@ -1,0 +1,12 @@
+fragment ChromecastStatusData on ChromecastStatus {
+  address
+  name
+  connected
+  scene_id
+  state
+  time
+  duration
+  volume
+  muted
+  error
+}

@@ -25,6 +25,7 @@ import "./track-activity";
 import "./vrmode";
 import "./media-session";
 import "./wake-sentinel";
+import "./chromecast-server";
 import cx from "classnames";
 import {
   useSceneSaveActivity,
@@ -279,7 +280,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
     useScript(
       "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1",
-      uiConfig?.enableChromecast
+      uiConfig?.enableChromecast && !uiConfig?.castFromServer
     );
 
     const file = useMemo(
@@ -370,7 +371,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         inactivityTimeout: 700,
         preload: "none",
         playsinline: true,
-        techOrder: ["chromecast", "html5"],
+        techOrder: ["chromecast", "chromecastServer", "html5"],
         userActions: {
           hotkeys: function (this: VideoJsPlayer, event) {
             handleHotkeys(this, event);
@@ -410,6 +411,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           },
           mediaSession: {},
           wakeSentinel: {},
+          chromecastServer: {
+            enabled: uiConfig?.castFromServer ?? false,
+          },
         },
       };
 
@@ -449,6 +453,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     }, [
       uiConfig?.showAbLoopControls,
       uiConfig?.enableChromecast,
+      uiConfig?.castFromServer,
       interfaceConfig?.autostartVideo,
     ]);
 
@@ -712,6 +717,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       player.load();
       player.focus();
+      player.chromecastServer().setScene(scene.id, startPosition);
 
       // Check the autostart button plugin for user preference
       const autostartButton = player.autostartButton();

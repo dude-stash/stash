@@ -1,0 +1,27 @@
+mutation ChromecastPlay($input: ChromecastPlayInput!) {
+  chromecastPlay(input: $input)
+}
+
+mutation ChromecastPause($address: String!) {
+  chromecastPause(address: $address)
+}
+
+mutation ChromecastResume($address: String!) {
+  chromecastResume(address: $address)
+}
+
+mutation ChromecastSeek($address: String!, $time: Float!) {
+  chromecastSeek(address: $address, time: $time)
+}
+
+mutation ChromecastSetVolume($address: String!, $volume: Float!) {
+  chromecastSetVolume(address: $address, volume: $volume)
+}
+
+mutation ChromecastSetMuted($address: String!, $muted: Boolean!) {
+  chromecastSetMuted(address: $address, muted: $muted)
+}
+
+mutation ChromecastStop($address: String!) {
+  chromecastStop(address: $address)
+}

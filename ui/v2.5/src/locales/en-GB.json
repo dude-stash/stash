@@ -853,6 +853,8 @@
           },
           "disable_mobile_media_auto_rotate": "Disable auto-rotate of fullscreen media on mobile",
           "enable_chromecast": "Enable Chromecast",
+          "cast_from_server": "Cast to Chromecast through the Stash server",
+          "cast_from_server_desc": "Stash connects to the Chromecast itself, so casting works from any browser and without HTTPS. Replaces the browser's Cast button. If Stash uses HTTPS, set cast_http_port in config.yml.",
           "show_ab_loop_controls": "Show AB loop controls",
           "show_scrubber": "Show scrubber",
           "show_range_markers": "Show range markers",
