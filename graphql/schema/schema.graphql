@@ -257,6 +257,11 @@ type Query {
 
   dlnaStatus: DLNAStatus!
 
+  "Searches the local network for Chromecasts and other Cast devices"
+  chromecastDevices: [ChromecastDevice!]!
+  "Cast devices that Stash is connected to"
+  chromecastSessions: [ChromecastStatus!]!
+
   # Get everything
 
   allScenes: [Scene!]! @deprecated(reason: "Use findScenes instead")
@@ -595,6 +600,17 @@ type Mutation {
   addTempDLNAIP(input: AddTempDLNAIPInput!): Boolean!
   "Removes an IP address from the temporary DLNA whitelist"
   removeTempDLNAIP(input: RemoveTempDLNAIPInput!): Boolean!
+
+  "Casts a scene to a Chromecast, which loads it from Stash"
+  chromecastPlay(input: ChromecastPlayInput!): Boolean!
+  chromecastPause(address: String!): Boolean!
+  chromecastResume(address: String!): Boolean!
+  chromecastSeek(address: String!, time: Float!): Boolean!
+  "Sets the device volume, from 0 to 1"
+  chromecastSetVolume(address: String!, volume: Float!): Boolean!
+  chromecastSetMuted(address: String!, muted: Boolean!): Boolean!
+  "Closes the media player on the device and disconnects from it"
+  chromecastStop(address: String!): Boolean!
 }
 
 type Subscription {
@@ -604,6 +620,9 @@ type Subscription {
   loggingSubscribe: [LogEntry!]!
 
   scanCompleteSubscribe: Boolean!
+
+  "Playback state changes of the Cast devices Stash is connected to"
+  chromecastSubscribe: ChromecastStatus!
 }
 
 schema {

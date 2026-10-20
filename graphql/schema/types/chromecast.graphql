@@ -1,0 +1,42 @@
+type ChromecastDevice {
+  name: String!
+  "Kind of device, such as Chromecast or Google Cast Group"
+  model: String
+  "host:port of the device"
+  address: String!
+}
+
+enum ChromecastPlaybackState {
+  IDLE
+  BUFFERING
+  PLAYING
+  PAUSED
+  "The scene played to the end"
+  FINISHED
+}
+
+type ChromecastStatus {
+  address: String!
+  name: String!
+  connected: Boolean!
+  "Scene that Stash sent to the device, if it is still playing it"
+  scene_id: ID
+  state: ChromecastPlaybackState!
+  "Playback position in seconds"
+  time: Float!
+  "Duration in seconds, 0 if not known yet"
+  duration: Float!
+  "Device volume from 0 to 1"
+  volume: Float!
+  muted: Boolean!
+  "Why the device could not play the scene, or why the connection was lost"
+  error: String
+}
+
+input ChromecastPlayInput {
+  "host or host:port of the device"
+  address: String!
+  scene_id: ID!
+  "Position to start from in seconds"
+  time: Float
+}

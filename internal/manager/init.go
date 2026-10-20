@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/remeh/sizedwaitgroup"
+	"github.com/stashapp/stash/internal/chromecast"
 	"github.com/stashapp/stash/internal/desktop"
 	"github.com/stashapp/stash/internal/dlna"
 	"github.com/stashapp/stash/internal/log"
@@ -96,7 +97,8 @@ func Initialize(cfg *config.Config, l *log.Logger) (*Manager, error) {
 		PluginCache:  pluginCache,
 		ScraperCache: scraperCache,
 
-		DLNAService: dlnaService,
+		DLNAService:       dlnaService,
+		ChromecastService: chromecast.NewService(),
 
 		Database:   db,
 		Repository: repo,

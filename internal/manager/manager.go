@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/remeh/sizedwaitgroup"
+	"github.com/stashapp/stash/internal/chromecast"
 	"github.com/stashapp/stash/internal/dlna"
 	"github.com/stashapp/stash/internal/log"
 	"github.com/stashapp/stash/internal/manager/config"
@@ -58,7 +59,8 @@ type Manager struct {
 	PluginPackageManager  *pkg.Manager
 	ScraperPackageManager *pkg.Manager
 
-	DLNAService *dlna.Service
+	DLNAService       *dlna.Service
+	ChromecastService *chromecast.Service
 
 	Database   *sqlite.Database
 	Repository models.Repository
