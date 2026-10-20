@@ -13,7 +13,10 @@ import (
 	"github.com/hashicorp/mdns"
 )
 
-const serviceType = "_googlecast._tcp"
+const (
+	serviceType = "_googlecast._tcp"
+	capVideoOut = 1
+)
 
 type Device struct {
 	Name string
@@ -82,6 +85,11 @@ func deviceFromEntry(e *mdns.ServiceEntry) (Device, bool) {
 			d.Name = value
 		case "md":
 			d.Model = value
+		case "ca":
+			// a bitmask of capabilities, where 1 is video output; speakers and speaker groups don't have it
+			if ca, err := strconv.Atoi(value); err == nil && ca&capVideoOut == 0 {
+				return Device{}, false
+			}
 		}
 	}
 	if d.Name == "" {
