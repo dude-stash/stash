@@ -375,6 +375,16 @@ $sceneTabWidth: 450px;
     font-size: 1.2em;
     margin-top: 0.4em;
     opacity: 0.8;
+
+    &.vjs-chromecast-server-error {
+      background-color: rgba(0, 0, 0, 0.75);
+      border-radius: 4px;
+      font-size: 1.4em;
+      max-width: 90%;
+      opacity: 1;
+      overflow-wrap: anywhere;
+      padding: 0.5em 1em;
+    }
   }
 
   .vjs-chromecast-server-notice {

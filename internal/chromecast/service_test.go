@@ -179,6 +179,54 @@ func TestLoadFailureNamesAddress(t *testing.T) {
 	}
 }
 
+func TestFailKeepsConnection(t *testing.T) {
+	h := newHarness(t)
+	h.play(nil)
+	h.waitPlaying()
+
+	if err := h.svc.Fail(h.address, 8, 15, "File not found: /media/8.mp4"); err != nil {
+		t.Fatal(err)
+	}
+	st := h.waitFor("failure", func(st Status) bool { return st.Error != "" })
+	if st.SceneID != 8 || st.State != StateIdle || !st.Connected || st.Time != 15 {
+		t.Errorf("status = %+v, want scene 8 idle at 15s and still connected", st)
+	}
+	for i := 0; len(h.device.Received("STOP")) == 0; i++ {
+		if i == 100 {
+			t.Fatal("the previous scene wasn't stopped")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// the device's report of the stopped scene doesn't replace the failure
+	time.Sleep(100 * time.Millisecond)
+	if got := h.svc.Sessions()[0]; got.Error == "" || got.SceneID != 8 {
+		t.Errorf("status after stop = %+v", got)
+	}
+
+	// the next scene is cast without reconnecting or relaunching
+	h.play(nil)
+	st = h.waitPlaying()
+	if st.Error != "" {
+		t.Errorf("error kept after casting another scene: %q", st.Error)
+	}
+	if n := len(h.device.Received("LAUNCH")); n != 1 {
+		t.Errorf("LAUNCH sent %d times, want 1", n)
+	}
+}
+
+func TestLoadFailureReportedOnce(t *testing.T) {
+	h := newHarness(t)
+	h.device.FailLoads("/stream")
+	h.play(nil)
+	h.waitFor("error", func(st Status) bool { return st.Error != "" })
+
+	time.Sleep(100 * time.Millisecond)
+	if st := h.svc.Sessions()[0]; !strings.Contains(st.Error, "192.168.1.2") || st.State != StateIdle {
+		t.Errorf("status = %+v, want the first error kept and the device idle", st)
+	}
+}
+
 func TestFinished(t *testing.T) {
 	h := newHarness(t)
 	h.play(nil)

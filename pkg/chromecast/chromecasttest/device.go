@@ -241,6 +241,10 @@ func (d *Device) handleMedia(c net.Conn, src, typ string, p map[string]interface
 	case "PAUSE":
 		d.position = d.currentPosition()
 		d.state = "PAUSED"
+	case "STOP":
+		d.position = d.currentPosition()
+		d.state = "IDLE"
+		d.idleReason = "CANCELLED"
 	case "SEEK":
 		d.position, _ = p["currentTime"].(float64)
 		d.positionAt = time.Now()

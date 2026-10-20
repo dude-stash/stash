@@ -373,6 +373,10 @@ func (s *Service) handleError(sess *session, m *castproto.ErrorMessage) []action
 // loadFailed tries the fallback stream, or reports the failure if there is none.
 func (s *Service) loadFailed(sess *session) []action {
 	st := &sess.status
+	if sess.url == "" {
+		// already reported, as the app reports a failed load both as an error and in its media status
+		return nil
+	}
 
 	if sess.fallback != nil {
 		logger.Infof("[chromecast] %s could not play the direct stream of scene %d, trying HLS", st.Name, st.SceneID)
@@ -389,6 +393,7 @@ func (s *Service) loadFailed(sess *session) []action {
 	}
 	st.Error = fmt.Sprintf("%s couldn't load the video from %s. Check that it can reach Stash at that address.", st.Name, host)
 	logger.Warnf("[chromecast] %s could not play scene %d from %s", st.Name, st.SceneID, sess.url)
+	st.State = StateIdle
 	sess.url = ""
 	sess.loadRequestID = 0
 	return nil
@@ -458,6 +463,34 @@ func (s *Service) Play(address string, sceneID int, load castproto.LoadRequest, 
 	s.mu.Unlock()
 
 	return send(sess.conn)
+}
+
+// Fail reports that a scene can't be cast, such as when its file is missing. Whatever the device is playing is stopped, but it stays connected so the next scene can be cast.
+func (s *Service) Fail(address string, sceneID int, time float64, message string) error {
+	sess, err := s.connected(address)
+	if err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	transportID, mediaSessionID := sess.transportID, sess.mediaSessionID
+	s.startLoad(sess, castproto.LoadRequest{}, nil)
+	sess.pending = nil
+	sess.loadRequestID = 0
+	st := &sess.status
+	st.SceneID = sceneID
+	st.State = StateIdle
+	st.Time = time
+	st.Duration = 0
+	st.Error = message
+	s.publish(*st)
+	s.mu.Unlock()
+
+	logger.Warnf("[chromecast] not casting scene %d to %s: %s", sceneID, st.Name, message)
+	if transportID != "" && mediaSessionID != 0 {
+		return sess.conn.StopMedia(transportID, mediaSessionID)
+	}
+	return nil
 }
 
 var errNotPlaying = errors.New("nothing Stash sent is playing")

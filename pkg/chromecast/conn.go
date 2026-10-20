@@ -209,6 +209,11 @@ func (c *Conn) Pause(transportID string, mediaSessionID int) error {
 	return c.sendTo(transportID, nsMedia, mediaRequest{header: c.request("PAUSE"), MediaSessionID: mediaSessionID})
 }
 
+// StopMedia stops playback, leaving the app open.
+func (c *Conn) StopMedia(transportID string, mediaSessionID int) error {
+	return c.sendTo(transportID, nsMedia, mediaRequest{header: c.request("STOP"), MediaSessionID: mediaSessionID})
+}
+
 func (c *Conn) Seek(transportID string, mediaSessionID int, seconds float64) error {
 	return c.sendTo(transportID, nsMedia, mediaRequest{header: c.request("SEEK"), MediaSessionID: mediaSessionID, CurrentTime: &seconds})
 }

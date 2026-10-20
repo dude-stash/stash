@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/url"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -64,6 +66,23 @@ func (r *mutationResolver) ChromecastPlay(ctx context.Context, input ChromecastP
 		return false, fmt.Errorf("connecting to Chromecast %s: %w", input.Address, err)
 	}
 
+	startTime := 0.0
+	if input.Time != nil {
+		startTime = *input.Time
+	}
+
+	// files in zips can't be checked directly, and are left to the stream to report
+	if file.ZipFileID == nil {
+		if _, err := os.Stat(file.Path); err != nil {
+			msg := fmt.Sprintf("Can't read %s: %v", file.Path, err)
+			if errors.Is(err, fs.ErrNotExist) {
+				msg = "File not found: " + file.Path
+			}
+			// reported through the session, so the page stays connected for the next scene
+			return true, svc.Fail(input.Address, sceneID, startTime, msg)
+		}
+	}
+
 	baseURL, err := chromecastBaseURL(ip)
 	if err != nil {
 		return false, err
@@ -81,9 +100,7 @@ func (r *mutationResolver) ChromecastPlay(ctx context.Context, input ChromecastP
 		return false, err
 	}
 
-	if input.Time != nil {
-		load.CurrentTime = *input.Time
-	}
+	load.CurrentTime = startTime
 
 	thumbnail, err := url.Parse(urlbuilders.NewSceneURLBuilder(baseURL, scene).GetScreenshotURL())
 	if err != nil {

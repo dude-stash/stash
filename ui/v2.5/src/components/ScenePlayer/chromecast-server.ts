@@ -53,6 +53,8 @@ class ChromecastServerTech extends Tech {
   private pendingTime = 0;
   private castTimeout?: number;
   private played = false;
+  // the scene couldn't be cast, but the device is still connected for the next one
+  private failed = false;
   // the player gives a new tech the browser's volume, which shouldn't change the device's
   private acceptVolume = false;
 
@@ -123,6 +125,7 @@ class ChromecastServerTech extends Tech {
 
     this.loading = true;
     this.played = false;
+    this.failed = false;
     this.status = undefined;
     this.pendingTime = time;
     this.updateInfo();
@@ -145,16 +148,16 @@ class ChromecastServerTech extends Tech {
       return;
     }
 
-    if (status.error) {
-      this.plugin.end(status.error);
-      return;
-    }
-
     if (status.scene_id !== this.sceneId) {
       // statuses from before the device took the scene
       if (!this.loading) {
         this.plugin.end(`${status.name} is playing something else`);
       }
+      return;
+    }
+
+    if (status.error) {
+      this.fail();
       return;
     }
 
@@ -202,6 +205,14 @@ class ChromecastServerTech extends Tech {
     this.updateInfo();
   }
 
+  private fail() {
+    this.loading = false;
+    this.failed = true;
+    this.trigger("pause");
+    this.plugin.stopWaiting();
+    this.updateInfo();
+  }
+
   updateInfo() {
     const el = this.el();
     const title = el.querySelector(".vjs-chromecast-server-title");
@@ -214,15 +225,21 @@ class ChromecastServerTech extends Tech {
     if (state) {
       let text = "";
       if (this.loading) text = "Loading…";
+      else if (this.failed) text = this.status?.error ?? "";
       else if (this.status?.state === State.Finished) text = "Finished";
       else if (this.status?.state === State.Paused) text = "Paused";
       state.textContent = text;
+      state.classList.toggle("vjs-chromecast-server-error", this.failed);
     }
   }
 
   play() {
     if (!this.paused()) return;
 
+    if (this.failed) {
+      this.castScene(this.pendingTime);
+      return;
+    }
     if (this.ended()) {
       this.castScene(0);
       return;
@@ -259,7 +276,7 @@ class ChromecastServerTech extends Tech {
   }
 
   currentTime() {
-    if (this.loading || !this.status) return this.pendingTime;
+    if (this.loading || this.failed || !this.status) return this.pendingTime;
 
     let { time } = this.status;
     if (this.status.state === State.Playing) {
@@ -270,8 +287,8 @@ class ChromecastServerTech extends Tech {
   }
 
   setCurrentTime(seconds: number) {
-    if (this.loading || this.ended()) {
-      // the device can't seek before it has loaded the scene or after it has finished, so start there instead
+    if (this.loading || this.failed || this.ended()) {
+      // the device can't seek before it has loaded the scene or after it has stopped, so start there instead
       this.castScene(seconds);
       return;
     }
@@ -607,7 +624,9 @@ class ChromecastServerPlugin extends videojs.getPlugin("plugin") {
   private resume() {
     if (!this.enabled || this.device || !this.sceneId) return;
 
-    const playing = (s: Status) => !!s.scene_id && s.state !== State.Idle;
+    // a scene that couldn't be cast leaves the device idle, but still in use
+    const playing = (s: Status) =>
+      !!s.scene_id && (s.state !== State.Idle || !!s.error);
 
     const session = this.sessions.find(
       (s) => s.scene_id === this.sceneId && playing(s)
@@ -636,6 +655,10 @@ class ChromecastServerPlugin extends videojs.getPlugin("plugin") {
 
   getDevice() {
     return this.device;
+  }
+
+  stopWaiting() {
+    this.player.removeClass("vjs-waiting");
   }
 
   deviceStatus() {
