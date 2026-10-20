@@ -1,0 +1,12 @@
+query FCastReceivers {
+  fcastReceivers {
+    name
+    address
+  }
+}
+
+query FCastSessions {
+  fcastSessions {
+    ...FCastStatusData
+  }
+}

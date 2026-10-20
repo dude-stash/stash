@@ -300,6 +300,98 @@ $sceneTabWidth: 450px;
     }
   }
 
+  .vjs-fcast-button {
+    &.vjs-hover .vjs-menu {
+      display: none;
+    }
+
+    .vjs-menu {
+      left: -6em;
+      width: 16em;
+    }
+
+    .vjs-menu li {
+      font-size: 0.8em;
+      text-transform: none;
+    }
+
+    // Material "connected_tv" icon, so it isn't mistaken for the Chromecast button
+    .vjs-button > .vjs-icon-placeholder::before {
+      background-color: currentColor;
+      content: "";
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12zM4 14v2h2c0-1.11-.89-2-2-2zm0-3v1.43c1.97 0 3.57 1.6 3.57 3.57H9c0-2.76-2.24-5-5-5zm0-3v1.45c3.61 0 6.55 2.93 6.55 6.55H12c0-4.42-3.59-8-8-8z'/%3E%3C/svg%3E")
+        center / 1.6em no-repeat;
+    }
+
+    &.vjs-fcast-casting .vjs-button {
+      color: #4285f4;
+    }
+  }
+
+  .vjs-fcast-tech {
+    background-color: #000;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+  }
+
+  .vjs-fcast-poster {
+    background: center / contain no-repeat;
+    bottom: 0;
+    left: 0;
+    opacity: 0.4;
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+
+  .vjs-fcast-info {
+    align-items: center;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    left: 0;
+    padding: 1em;
+    position: absolute;
+    right: 0;
+    text-align: center;
+    text-shadow: 0 0 4px #000;
+    top: 0;
+  }
+
+  .vjs-fcast-title {
+    font-size: 1.6em;
+  }
+
+  .vjs-fcast-state {
+    font-size: 1.2em;
+    margin-top: 0.4em;
+    opacity: 0.8;
+  }
+
+  .vjs-fcast-notice {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 4px;
+    font-size: 1.2em;
+    left: 50%;
+    max-width: 80%;
+    opacity: 0;
+    padding: 0.5em 1em;
+    pointer-events: none;
+    position: absolute;
+    top: 1em;
+    transform: translateX(-50%);
+    transition: opacity 0.3s;
+    z-index: 2;
+
+    &.vjs-fcast-notice-visible {
+      opacity: 1;
+    }
+  }
+
   .vjs-marker {
     background-color: rgba(33, 33, 33, 0.8);
     bottom: 0;

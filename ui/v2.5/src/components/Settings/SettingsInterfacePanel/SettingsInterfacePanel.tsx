@@ -386,6 +386,13 @@ export const SettingsInterfacePanel: React.FC = PatchComponent(
             onChange={(v) => saveUI({ enableChromecast: v })}
           />
           <BooleanSetting
+            id="enable-fcast"
+            headingID="config.ui.scene_player.options.enable_fcast"
+            subHeadingID="config.ui.scene_player.options.enable_fcast_desc"
+            checked={ui.enableFCast ?? undefined}
+            onChange={(v) => saveUI({ enableFCast: v })}
+          />
+          <BooleanSetting
             id="disable-mobile-media-auto-rotate"
             headingID="config.ui.scene_player.options.disable_mobile_media_auto_rotate"
             checked={ui.disableMobileMediaAutoRotateEnabled ?? undefined}

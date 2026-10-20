@@ -1,0 +1,23 @@
+mutation FCastPlay($input: FCastPlayInput!) {
+  fcastPlay(input: $input)
+}
+
+mutation FCastPause($address: String!) {
+  fcastPause(address: $address)
+}
+
+mutation FCastResume($address: String!) {
+  fcastResume(address: $address)
+}
+
+mutation FCastSeek($address: String!, $time: Float!) {
+  fcastSeek(address: $address, time: $time)
+}
+
+mutation FCastSetVolume($address: String!, $volume: Float!) {
+  fcastSetVolume(address: $address, volume: $volume)
+}
+
+mutation FCastStop($address: String!) {
+  fcastStop(address: $address)
+}

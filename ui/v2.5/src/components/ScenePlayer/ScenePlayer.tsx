@@ -25,6 +25,7 @@ import "./track-activity";
 import "./vrmode";
 import "./media-session";
 import "./wake-sentinel";
+import "./fcast";
 import cx from "classnames";
 import {
   useSceneSaveActivity,
@@ -370,7 +371,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
         inactivityTimeout: 700,
         preload: "none",
         playsinline: true,
-        techOrder: ["chromecast", "html5"],
+        techOrder: ["chromecast", "fcast", "html5"],
         userActions: {
           hotkeys: function (this: VideoJsPlayer, event) {
             handleHotkeys(this, event);
@@ -410,6 +411,9 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
           },
           mediaSession: {},
           wakeSentinel: {},
+          fcast: {
+            enabled: uiConfig?.enableFCast ?? false,
+          },
         },
       };
 
@@ -449,6 +453,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
     }, [
       uiConfig?.showAbLoopControls,
       uiConfig?.enableChromecast,
+      uiConfig?.enableFCast,
       interfaceConfig?.autostartVideo,
     ]);
 
@@ -647,6 +652,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             };
           })
       );
+      player.fcast().setScene(scene.id);
 
       function getDefaultLanguageCode() {
         let languageCode = window.navigator.language;

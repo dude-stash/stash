@@ -853,6 +853,8 @@
           },
           "disable_mobile_media_auto_rotate": "Disable auto-rotate of fullscreen media on mobile",
           "enable_chromecast": "Enable Chromecast",
+          "enable_fcast": "Enable FCast",
+          "enable_fcast_desc": "Cast scenes to FCast receivers on the local network. Stash sends the stream to the receiver itself, so this works from any browser.",
           "show_ab_loop_controls": "Show AB loop controls",
           "show_scrubber": "Show scrubber",
           "show_range_markers": "Show range markers",

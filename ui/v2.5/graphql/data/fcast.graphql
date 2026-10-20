@@ -1,0 +1,11 @@
+fragment FCastStatusData on FCastStatus {
+  address
+  name
+  connected
+  scene_id
+  state
+  time
+  duration
+  volume
+  error
+}

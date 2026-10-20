@@ -22,3 +22,9 @@ subscription LoggingSubscribe {
 subscription ScanCompleteSubscribe {
   scanCompleteSubscribe
 }
+
+subscription FCastSubscribe {
+  fcastSubscribe {
+    ...FCastStatusData
+  }
+}

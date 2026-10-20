@@ -73,6 +73,9 @@ export interface IUIConfig {
   // if true the chromecast option will enabled
   enableChromecast?: boolean;
 
+  // if true the scene player can cast to FCast receivers
+  enableFCast?: boolean;
+
   // if true the slideshow autostarts when opening a gallery's lightbox from the galleries page
   autostartGallerySlideshow?: boolean;
 
