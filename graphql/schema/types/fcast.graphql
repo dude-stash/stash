@@ -1,0 +1,36 @@
+type FCastReceiver {
+  name: String!
+  "host:port of the receiver"
+  address: String!
+}
+
+enum FCastPlaybackState {
+  IDLE
+  PLAYING
+  PAUSED
+}
+
+type FCastStatus {
+  address: String!
+  name: String!
+  connected: Boolean!
+  "Scene that Stash sent to the receiver, if it is still playing it"
+  scene_id: ID
+  state: FCastPlaybackState!
+  "Playback position in seconds"
+  time: Float!
+  "Duration in seconds, 0 if not known yet"
+  duration: Float!
+  "Volume from 0 to 1"
+  volume: Float!
+  "Why the receiver could not play the scene, or why the connection was lost"
+  error: String
+}
+
+input FCastPlayInput {
+  "host or host:port of the receiver"
+  address: String!
+  scene_id: ID!
+  "Position to start from in seconds"
+  time: Float
+}

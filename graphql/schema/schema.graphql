@@ -257,6 +257,11 @@ type Query {
 
   dlnaStatus: DLNAStatus!
 
+  "Searches the local network for FCast receivers"
+  fcastReceivers: [FCastReceiver!]!
+  "FCast receivers that Stash is connected to"
+  fcastSessions: [FCastStatus!]!
+
   # Get everything
 
   allScenes: [Scene!]! @deprecated(reason: "Use findScenes instead")
@@ -595,6 +600,16 @@ type Mutation {
   addTempDLNAIP(input: AddTempDLNAIPInput!): Boolean!
   "Removes an IP address from the temporary DLNA whitelist"
   removeTempDLNAIP(input: RemoveTempDLNAIPInput!): Boolean!
+
+  "Casts a scene to an FCast receiver"
+  fcastPlay(input: FCastPlayInput!): Boolean!
+  fcastPause(address: String!): Boolean!
+  fcastResume(address: String!): Boolean!
+  fcastSeek(address: String!, time: Float!): Boolean!
+  "Sets the receiver volume, from 0 to 1"
+  fcastSetVolume(address: String!, volume: Float!): Boolean!
+  "Stops playback and disconnects from an FCast receiver"
+  fcastStop(address: String!): Boolean!
 }
 
 type Subscription {
@@ -604,6 +619,9 @@ type Subscription {
   loggingSubscribe: [LogEntry!]!
 
   scanCompleteSubscribe: Boolean!
+
+  "Playback state changes of the FCast receivers Stash is connected to"
+  fcastSubscribe: FCastStatus!
 }
 
 schema {

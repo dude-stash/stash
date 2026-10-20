@@ -12,6 +12,7 @@ import (
 	"github.com/remeh/sizedwaitgroup"
 	"github.com/stashapp/stash/internal/desktop"
 	"github.com/stashapp/stash/internal/dlna"
+	"github.com/stashapp/stash/internal/fcast"
 	"github.com/stashapp/stash/internal/log"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/ffmpeg"
@@ -96,7 +97,8 @@ func Initialize(cfg *config.Config, l *log.Logger) (*Manager, error) {
 		PluginCache:  pluginCache,
 		ScraperCache: scraperCache,
 
-		DLNAService: dlnaService,
+		DLNAService:  dlnaService,
+		FCastService: fcast.NewService(),
 
 		Database:   db,
 		Repository: repo,

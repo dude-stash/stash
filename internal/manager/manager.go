@@ -14,6 +14,7 @@ import (
 
 	"github.com/remeh/sizedwaitgroup"
 	"github.com/stashapp/stash/internal/dlna"
+	"github.com/stashapp/stash/internal/fcast"
 	"github.com/stashapp/stash/internal/log"
 	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/ffmpeg"
@@ -58,7 +59,8 @@ type Manager struct {
 	PluginPackageManager  *pkg.Manager
 	ScraperPackageManager *pkg.Manager
 
-	DLNAService *dlna.Service
+	DLNAService  *dlna.Service
+	FCastService *fcast.Service
 
 	Database   *sqlite.Database
 	Repository models.Repository
