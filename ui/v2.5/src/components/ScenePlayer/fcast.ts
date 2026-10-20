@@ -555,6 +555,7 @@ class FCastPlugin extends videojs.getPlugin("plugin") {
   private receiver: IReceiver | null = null;
   private sessions: Status[] = [];
   private sceneId?: string;
+  private sceneStartTime = 0;
   private startTime = 0;
   private browserVolume = 1;
   private browserMuted = false;
@@ -605,9 +606,10 @@ class FCastPlugin extends videojs.getPlugin("plugin") {
     });
   }
 
-  // picks up a cast that is already playing the scene, such as after reloading the page
-  setScene(sceneId: string) {
+  // picks up a cast that is already playing the scene, such as after reloading the page, or casts the scene to a receiver that is playing another one
+  setScene(sceneId: string, startTime: number) {
     this.sceneId = sceneId;
+    this.sceneStartTime = startTime;
     this.resume();
   }
 
@@ -615,7 +617,14 @@ class FCastPlugin extends videojs.getPlugin("plugin") {
     if (!this.enabled || this.receiver || !this.sceneId) return;
 
     const session = this.sessions.find((s) => s.scene_id === this.sceneId);
-    if (session) this.start(session, session.time);
+    if (session) {
+      this.start(session, session.time);
+      return;
+    }
+
+    // sessions without a scene were taken over by another sender, so they're left alone
+    const casting = this.sessions.find((s) => s.scene_id);
+    if (casting) this.start(casting, this.sceneStartTime);
   }
 
   private updateSession(status: Status) {

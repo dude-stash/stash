@@ -652,7 +652,6 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
             };
           })
       );
-      player.fcast().setScene(scene.id);
 
       function getDefaultLanguageCode() {
         let languageCode = window.navigator.language;
@@ -718,6 +717,7 @@ export const ScenePlayer: React.FC<IScenePlayerProps> = PatchComponent(
 
       player.load();
       player.focus();
+      player.fcast().setScene(scene.id, startPosition);
 
       // Check the autostart button plugin for user preference
       const autostartButton = player.autostartButton();
