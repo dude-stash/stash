@@ -29,6 +29,7 @@ require (
 	github.com/gorilla/sessions v1.2.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
+	github.com/hashicorp/mdns v1.0.7
 	github.com/hasura/go-graphql-client v0.13.1
 	github.com/jinzhu/copier v0.4.0
 	github.com/jmoiron/sqlx v1.4.0
@@ -104,6 +105,7 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/miekg/dns v1.1.72 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
