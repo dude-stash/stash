@@ -454,7 +454,8 @@ class FCastMenuItem extends videojs.getComponent("MenuItem") {
 
 class FCastButton extends videojs.getComponent("MenuButton") {
   private plugin?: FCastPlugin;
-  private receivers?: IReceiver[] | null;
+  private receivers?: IReceiver[];
+  private searching = false;
   private searchError?: string;
 
   constructor(player: VideoJsPlayer, plugin: FCastPlugin) {
@@ -485,24 +486,22 @@ class FCastButton extends videojs.getComponent("MenuButton") {
       ];
     }
 
-    if (this.searchError) {
-      return [
+    const items = (this.receivers ?? []).map(
+      (r) => new FCastMenuItem(player, r.name, () => plugin.start(r))
+    );
+    if (this.searching) {
+      items.push(new FCastMenuItem(player, "Searching for receivers…"));
+    } else if (this.searchError) {
+      items.push(
         new FCastMenuItem(
           player,
           `Couldn't search for receivers: ${this.searchError}`
-        ),
-      ];
+        )
+      );
+    } else if (items.length === 0) {
+      items.push(new FCastMenuItem(player, "No FCast receivers found"));
     }
-    if (!this.receivers) {
-      return [new FCastMenuItem(player, "Searching for receivers…")];
-    }
-    if (this.receivers.length === 0) {
-      return [new FCastMenuItem(player, "No FCast receivers found")];
-    }
-
-    return this.receivers.map(
-      (r) => new FCastMenuItem(player, r.name, () => plugin.start(r))
-    );
+    return items;
   }
 
   update() {
@@ -515,18 +514,24 @@ class FCastButton extends videojs.getComponent("MenuButton") {
   }
 
   handleClick(event: videojs.EventTarget.Event) {
-    if (!this.isOpen() && this.plugin && !this.plugin.getReceiver()) {
-      this.search();
-      return;
-    }
+    const opening = !this.isOpen();
     super.handleClick(event);
+    if (opening && this.plugin && !this.plugin.getReceiver()) this.search();
+  }
+
+  // update replaces the menu, and the menu closes when its focused item goes, so focus the button first
+  private refresh() {
+    const open = this.isOpen();
+    if (open) this.menuButton_.focus();
+    this.update();
+    if (open) this.pressButton();
   }
 
   private async search() {
-    this.receivers = null;
+    if (this.searching) return;
+    this.searching = true;
     this.searchError = undefined;
-    this.update();
-    this.pressButton();
+    this.refresh();
 
     try {
       const result = await getClient().query<GQL.FCastReceiversQuery>({
@@ -538,10 +543,8 @@ class FCastButton extends videojs.getComponent("MenuButton") {
       this.searchError = errorMessage(err);
     }
 
-    // update replaces the menu, which closes it
-    const open = this.isOpen();
-    this.update();
-    if (open) this.pressButton();
+    this.searching = false;
+    this.refresh();
   }
 }
 
