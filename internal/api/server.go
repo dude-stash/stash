@@ -51,6 +51,8 @@ const (
 
 type Server struct {
 	http.Server
+	// castServer serves scene media over plain HTTP to Cast devices, which don't accept Stash's own certificate. It is only set when TLS is configured.
+	castServer     *http.Server
 	displayAddress string
 
 	manager *manager.Manager
@@ -294,6 +296,10 @@ func Initialize() (*Server, error) {
 		}
 	})
 
+	if tlsConfig != nil && cfg.GetCastHTTPPort() != 0 {
+		server.castServer = server.newCastServer(cfg.GetHost() + ":" + strconv.Itoa(cfg.GetCastHTTPPort()))
+	}
+
 	logger.Infof("stash version: %s", build.VersionString())
 	go printLatestVersion(context.TODO())
 
@@ -332,6 +338,15 @@ func (s *Server) Start() error {
 	logger.Infof("stash is listening on " + s.Addr)
 	logger.Infof("stash is running at " + s.displayAddress)
 
+	if s.castServer != nil {
+		go func() {
+			logger.Infof("stash is serving media to Cast devices over http on " + s.castServer.Addr)
+			if err := s.castServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+				logger.Errorf("Cast devices can't load media from stash: %v", err)
+			}
+		}()
+	}
+
 	if s.TLSConfig != nil {
 		return s.ListenAndServeTLS("", "")
 	} else {
@@ -341,6 +356,12 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() {
+	if s.castServer != nil {
+		if err := s.castServer.Shutdown(context.TODO()); err != nil {
+			logger.Errorf("Error shutting down cast http server: %v", err)
+		}
+	}
+
 	err := s.Server.Shutdown(context.TODO())
 	if err != nil {
 		logger.Errorf("Error shutting down http server: %v", err)
@@ -366,6 +387,21 @@ func (s *Server) getSceneRoutes() chi.Router {
 		sceneMarkerFinder: repo.SceneMarker,
 		tagFinder:         repo.Tag,
 	}.Routes()
+}
+
+// newCastServer returns a plain HTTP server for Cast devices, with only the scene routes and the same authentication as the main server, which accepts signed URLs.
+func (s *Server) newCastServer(address string) *http.Server {
+	r := chi.NewRouter()
+	r.Use(cors.AllowAll().Handler)
+	r.Use(RequestIPMiddleware)
+	r.Use(authenticateHandler())
+	r.Use(middleware.Recoverer)
+	r.Mount("/scene", s.getSceneRoutes())
+
+	return &http.Server{
+		Addr:    address,
+		Handler: r,
+	}
 }
 
 func (s *Server) getGalleryRoutes() chi.Router {

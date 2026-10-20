@@ -145,6 +145,9 @@ const (
 	Port        = "port"
 	portDefault = 9999
 
+	// plain HTTP port that Cast devices load media from when Stash is served over HTTPS, 0 to disable
+	CastHTTPPort = "cast_http_port"
+
 	ExternalHost = "external_host"
 
 	// http proxy url if required
@@ -1007,6 +1010,10 @@ func (i *Config) GetPort() int {
 	}
 
 	return ret
+}
+
+func (i *Config) GetCastHTTPPort() int {
+	return i.getInt(CastHTTPPort)
 }
 
 func (i *Config) GetThemeColor() string {
