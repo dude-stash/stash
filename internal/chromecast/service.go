@@ -311,16 +311,17 @@ func (s *Service) handleMediaStatus(sess *session, ms castproto.MediaStatus) []a
 		if ms.Media == nil || sess.url == "" || ms.MediaSessionID <= sess.prevSessionID {
 			return nil
 		}
-		if !sess.confirmed() && ms.Media.ContentID == sess.url {
+		switch {
+		case !sess.confirmed() && ms.Media.ContentID == sess.url:
 			sess.mediaSessionID = ms.MediaSessionID
-		} else if sess.confirmed() && ms.MediaSessionID > sess.mediaSessionID {
+		case sess.confirmed() && ms.MediaSessionID > sess.mediaSessionID:
 			// another sender loaded something into the app
 			sess.url = ""
 			sess.mediaSessionID = 0
 			st.SceneID = 0
 			st.State = StateIdle
 			return nil
-		} else {
+		default:
 			return nil
 		}
 	}
