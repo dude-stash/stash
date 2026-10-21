@@ -83,7 +83,7 @@ func (r *mutationResolver) ChromecastPlay(ctx context.Context, input ChromecastP
 		}
 	}
 
-	baseURL, err := chromecastBaseURL(ip)
+	baseURL, err := chromecastBaseURL(ip, r.castMedia)
 	if err != nil {
 		return false, err
 	}
@@ -123,8 +123,8 @@ func (r *mutationResolver) ChromecastPlay(ctx context.Context, input ChromecastP
 	return true, nil
 }
 
-// chromecastBaseURL returns the address that Cast devices load media from, which is plain HTTP because they don't accept Stash's own certificate.
-func chromecastBaseURL(ip net.IP) (string, error) {
+// chromecastBaseURL returns the address that Cast devices load media from. It is always plain HTTP, as they don't accept Stash's own certificate, so castMedia serves it when Stash uses HTTPS.
+func chromecastBaseURL(ip net.IP, castMedia *castMediaServer) (string, error) {
 	c := manager.GetInstance().Config
 
 	host := c.GetHost()
@@ -141,10 +141,10 @@ func chromecastBaseURL(ip net.IP) (string, error) {
 	}
 
 	port := c.GetPort()
-	if c.HasTLSConfig() {
-		port = c.GetCastHTTPPort()
-		if port == 0 {
-			return "", errors.New("stash is served over HTTPS, and Chromecasts only load video over HTTPS from sites with a publicly trusted certificate: set cast_http_port in config.yml, for example to 9997, and restart Stash so they can load it over HTTP")
+	if castMedia != nil {
+		var err error
+		if port, err = castMedia.Port(); err != nil {
+			return "", err
 		}
 	}
 

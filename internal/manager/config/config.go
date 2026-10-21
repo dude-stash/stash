@@ -145,7 +145,7 @@ const (
 	Port        = "port"
 	portDefault = 9999
 
-	// plain HTTP port that Cast devices load media from when Stash is served over HTTPS, 0 to disable
+	// plain HTTP port that Cast devices load media from when Stash is served over HTTPS; unset, the port after the main one (or any free one) is opened on the first cast
 	CastHTTPPort = "cast_http_port"
 
 	ExternalHost = "external_host"

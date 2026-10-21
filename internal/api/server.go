@@ -51,8 +51,8 @@ const (
 
 type Server struct {
 	http.Server
-	// castServer serves scene media over plain HTTP to Cast devices, which don't accept Stash's own certificate. It is only set when TLS is configured.
-	castServer     *http.Server
+	// castMedia is only set when TLS is configured
+	castMedia      *castMediaServer
 	displayAddress string
 
 	manager *manager.Manager
@@ -165,7 +165,12 @@ func Initialize() (*Server, error) {
 	imageService := mgr.ImageService
 	galleryService := mgr.GalleryService
 	groupService := mgr.GroupService
+	if tlsConfig != nil {
+		server.castMedia = newCastMediaServer(cfg.GetHost(), cfg.GetCastHTTPPort(), cfg.GetPort()+1, castMediaRoutes(server.getSceneRoutes()))
+	}
+
 	resolver := &Resolver{
+		castMedia:      server.castMedia,
 		repository:     repo,
 		sceneService:   sceneService,
 		imageService:   imageService,
@@ -296,10 +301,6 @@ func Initialize() (*Server, error) {
 		}
 	})
 
-	if tlsConfig != nil && cfg.GetCastHTTPPort() != 0 {
-		server.castServer = server.newCastServer(cfg.GetHost() + ":" + strconv.Itoa(cfg.GetCastHTTPPort()))
-	}
-
 	logger.Infof("stash version: %s", build.VersionString())
 	go printLatestVersion(context.TODO())
 
@@ -338,13 +339,11 @@ func (s *Server) Start() error {
 	logger.Infof("stash is listening on " + s.Addr)
 	logger.Infof("stash is running at " + s.displayAddress)
 
-	if s.castServer != nil {
-		go func() {
-			logger.Infof("stash is serving media to Cast devices over http on " + s.castServer.Addr)
-			if err := s.castServer.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-				logger.Errorf("Cast devices can't load media from stash: %v", err)
-			}
-		}()
+	// a configured port is opened straight away, so it fails at startup rather than when casting
+	if s.castMedia != nil && s.castMedia.port != 0 {
+		if _, err := s.castMedia.Port(); err != nil {
+			logger.Error(err)
+		}
 	}
 
 	if s.TLSConfig != nil {
@@ -356,8 +355,8 @@ func (s *Server) Start() error {
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() {
-	if s.castServer != nil {
-		if err := s.castServer.Shutdown(context.TODO()); err != nil {
+	if s.castMedia != nil {
+		if err := s.castMedia.Shutdown(context.TODO()); err != nil {
 			logger.Errorf("Error shutting down cast http server: %v", err)
 		}
 	}
@@ -387,21 +386,6 @@ func (s *Server) getSceneRoutes() chi.Router {
 		sceneMarkerFinder: repo.SceneMarker,
 		tagFinder:         repo.Tag,
 	}.Routes()
-}
-
-// newCastServer returns a plain HTTP server for Cast devices, with only the scene routes and the same authentication as the main server, which accepts signed URLs.
-func (s *Server) newCastServer(address string) *http.Server {
-	r := chi.NewRouter()
-	r.Use(cors.AllowAll().Handler)
-	r.Use(RequestIPMiddleware)
-	r.Use(authenticateHandler())
-	r.Use(middleware.Recoverer)
-	r.Mount("/scene", s.getSceneRoutes())
-
-	return &http.Server{
-		Addr:    address,
-		Handler: r,
-	}
 }
 
 func (s *Server) getGalleryRoutes() chi.Router {

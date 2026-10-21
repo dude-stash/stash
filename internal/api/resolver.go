@@ -33,6 +33,7 @@ type hookExecutor interface {
 }
 
 type Resolver struct {
+	castMedia      *castMediaServer
 	repository     models.Repository
 	sceneService   manager.SceneService
 	imageService   manager.ImageService
