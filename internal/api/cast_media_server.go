@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/stashapp/stash/internal/manager/config"
 	"github.com/stashapp/stash/pkg/logger"
 )
 
@@ -42,10 +43,24 @@ func castMediaRoutes(sceneRoutes http.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.Use(cors.AllowAll().Handler)
 	r.Use(RequestIPMiddleware)
+	r.Use(signedOnly)
 	r.Use(authenticateHandler())
 	r.Use(middleware.Recoverer)
 	r.Mount("/scene", sceneRoutes)
 	return r
+}
+
+// signedOnly refuses requests without a signed URL when a login is set up, as Cast devices only use those, and session cookies or API keys sent here would cross the network unencrypted.
+func signedOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if config.GetInstance().HasCredentials() {
+			if _, ok := authenticateSignedRequest(r); !ok {
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Port starts the server if it isn't running, and returns the port it listens on.

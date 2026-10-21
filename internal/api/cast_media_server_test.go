@@ -4,7 +4,15 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/stashapp/stash/internal/manager/config"
+	"github.com/stashapp/stash/pkg/signedurl"
 )
 
 func freePort(t *testing.T) int {
@@ -49,6 +57,55 @@ func TestCastMediaServerDefaultPortTaken(t *testing.T) {
 	_, got, err := startCastMedia(t, 0, taken)
 	if err != nil || got == 0 || got == taken {
 		t.Errorf("Port() = %d, %v, want another free port", got, err)
+	}
+}
+
+func TestSignedOnly(t *testing.T) {
+	c := config.InitializeEmpty()
+	handler := signedOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	status := func(target string, header http.Header) int {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		for k, v := range header {
+			req.Header[k] = v
+		}
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	// without a login, the main server's checks are left to decide
+	if got := status("/scene/1/stream", nil); got != http.StatusOK {
+		t.Errorf("without a login: %d, want the request passed on", got)
+	}
+
+	c.SetInterface(config.Username, "user")
+	c.SetInterface(config.Password, "hash")
+
+	signed := "/scene/1/stream?" + signedParams(c, "user", "/scene/1/stream").Encode()
+	expired := url.Values{}
+	for k, v := range signedParams(c, "user", "/scene/1/stream") {
+		expired[k] = v
+	}
+	expired.Set(signedurl.ExpiresParam, strconv.FormatInt(time.Now().Add(-time.Minute).Unix(), 10))
+
+	for _, tc := range []struct {
+		name   string
+		target string
+		header http.Header
+		want   int
+	}{
+		{"unsigned", "/scene/1/stream", nil, http.StatusUnauthorized},
+		{"session cookie", "/scene/1/stream", http.Header{"Cookie": {"session=abc"}}, http.StatusUnauthorized},
+		{"API key", "/scene/1/stream", http.Header{"Apikey": {"key"}}, http.StatusUnauthorized},
+		{"signed", signed, nil, http.StatusOK},
+		{"signed for another scene", strings.Replace(signed, "/scene/1/", "/scene/2/", 1), nil, http.StatusUnauthorized},
+		{"expired", "/scene/1/stream?" + expired.Encode(), nil, http.StatusUnauthorized},
+	} {
+		if got := status(tc.target, tc.header); got != tc.want {
+			t.Errorf("%s: %d, want %d", tc.name, got, tc.want)
+		}
 	}
 }
 
